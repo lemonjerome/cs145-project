@@ -1,10 +1,17 @@
+import './assets/main.css'
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
-import './style.css'
+import axios from 'axios'
+
 import App from './App.vue'
-import router from './router' // Import the router
+import router from './router'
+
+axios.defaults.baseURL = 'http://localhost:8000/internship'
 
 const app = createApp(App)
-app.use(createPinia()) // Add Pinia
-app.use(router) // Use the router
+
+app.use(createPinia())
+app.use(router, axios )
+
 app.mount('#app')
