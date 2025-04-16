@@ -1,2 +1,2 @@
 # cs145-project
-CJ Territoty
+CJ Territory
