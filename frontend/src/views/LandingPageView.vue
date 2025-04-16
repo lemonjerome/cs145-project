@@ -28,7 +28,7 @@
             Live travel
           </button>
         </router-link>
-        <router-link to="/send_route">
+        <router-link to="/route">
           <button class="bg-orange-500 text-white px-6 py-3 rounded-lg shadow hover:bg-orange-600">
             Simulate travel
           </button>
