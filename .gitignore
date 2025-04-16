@@ -60,6 +60,8 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+media/
+staticfiles/
 
 # Flask stuff:
 instance/
@@ -172,3 +174,15 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Vue.js stuff:
+node_modules/
+dist/
+*.local
+*.env.local
+*.env.*.local
+*.env
+*.env.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
