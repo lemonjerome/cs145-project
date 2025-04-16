@@ -20,12 +20,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-e&(n0#_+im#f(hh61nl2!qkab3mfayn(dlmy!1)0i)od2)5cpr'
+SECRET_KEY = 'django-insecure-e&(n0#_+im#f(hh61nl2!qkab3mfayn(dlmy!1)0i)od2)5cpr' # See .env file for production secret
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '127.0.0.1',
+]
 
 
 # Application definition
@@ -132,3 +135,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',  # Vue.js development server
 ]
+
+CORS_ALLOW_ALL_ORIGINS = True
