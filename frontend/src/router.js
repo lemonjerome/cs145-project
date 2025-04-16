@@ -1,16 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import LandingPageView from './views/LandingPageView.vue'
 
 const routes = [
   {
     path: '/',
-    name: 'Home',
-    component: HelloWorld, // Default component for the home route
-  },
-  {
-    path: '/about',
-    name: 'About',
-    component: () => import('./components/About.vue'), // Lazy-loaded component
+    name: 'LandingPage',
+    component: LandingPageView, // Default component for the home route
   },
 ]
 
