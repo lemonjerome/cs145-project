@@ -46,8 +46,16 @@ export default {
     },
     handleSubmit() {
       if (this.selectedFile) {
-        // Perform any necessary actions with the file here
-        this.$router.push("/simulate");
+        // Read the file content as text
+        const reader = new FileReader();
+        reader.onload = () => {
+          const gpxContent = reader.result;
+          // Store the GPX file content in localStorage
+          localStorage.setItem("gpxData", gpxContent);
+          // Navigate to the simulation page
+          this.$router.push("/simulate");
+        };
+        reader.readAsText(this.selectedFile); // Read the selected GPX file
       } else {
         alert("Please select a .gpx file before submitting.");
       }

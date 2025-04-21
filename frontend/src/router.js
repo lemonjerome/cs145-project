@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LandingPageView from './views/LandingPageView.vue'
 import GpxFormView from './views/GpxFormView.vue'
 import DestinationFommView from './views/DestinationFormView.vue'
+import SimulateFormView from './views/SimulateFormView.vue'
 
 const routes = [
   {
@@ -19,6 +20,11 @@ const routes = [
     name: 'DestinationForm',
     component: DestinationFommView, // Component for the destination form
   },
+  {
+    path: '/simulate',
+    name: 'SimulateForm',
+    component: SimulateFormView
+  }
 ]
 
 const router = createRouter({
