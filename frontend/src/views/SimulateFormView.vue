@@ -60,7 +60,8 @@ export default {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(gpxData, "application/xml");
 
-      const GPX_NS = "http://www.topografix.com/GPX/1/0";
+      // GPX_NS depends on gpx version used
+      const GPX_NS = xmlDoc.documentElement.namespaceURI;
       const trackpoints = xmlDoc.getElementsByTagNameNS(GPX_NS, "trkpt");
 
       for (let i = 0; i < trackpoints.length; i++) {
