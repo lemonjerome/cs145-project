@@ -25,6 +25,13 @@
     <div class="flex flex-col items-center w-full max-w-2xl">
       <div id="map" class="w-full h-96 border border-gray-300 rounded-lg"></div>
     </div>
+
+    <!-- Go Back Button -->
+    <router-link to="/" class="mt-6">
+      <button class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600">
+        Go Back
+      </button>
+    </router-link>
   </div>
 </template>
 
