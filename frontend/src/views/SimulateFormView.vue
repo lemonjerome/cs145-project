@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center bg-gray-100">
+  <div class="min-h-screen flex flex-col items-center justify-center bg-gray-100 relative">
     <h1 class="text-4xl font-bold text-green-500 mb-4">Route Simulation</h1>
 
     <!-- Speed & Buttons -->
@@ -27,11 +27,34 @@
     </div>
 
     <!-- Go Back Button -->
-    <router-link to="/" class="mt-6">
-      <button class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600">
-        Go Back
-      </button>
-    </router-link>
+    <button
+      class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600 mt-6"
+      @click="showModal = true"
+    >
+      Go Back
+    </button>
+
+    <!-- Confirmation Modal -->
+    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+        <h2 class="text-xl font-bold mb-4">Are you sure you want to go back?</h2>
+        <p class="text-gray-600 mb-6">This will stop the simulation and disconnect from the server.</p>
+        <div class="flex justify-center gap-4">
+          <button
+            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+            @click="confirmGoBack"
+          >
+            Yes, Go Back
+          </button>
+          <button
+            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+            @click="showModal = false"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -53,6 +76,8 @@ export default {
       pausedDistance: 0,
       startTime: null,
       lastTimestamp: null,
+      websocket: null,
+      showModal: false, // State for showing the confirmation modal
     };
   },
   mounted() {
@@ -111,7 +136,29 @@ export default {
       }
 
       this.map.panTo(start);
+
+      // Establish WebSocket connection
+      this.websocket = new WebSocket("ws://localhost:8000/ws/simulation/");
+      this.websocket.onopen = () => {
+        console.log("WebSocket connection established.");
+      };
+      this.websocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log(data.message);
+      };
+      this.websocket.onclose = () => {
+        console.log("WebSocket connection closed.");
+      };
+
       this.simulateStep();
+    },
+    confirmGoBack() {
+      // Close the WebSocket connection
+      if (this.websocket) {
+        this.websocket.close();
+      }
+      // Navigate back to the home page
+      this.$router.push("/");
     },
     resumeSimulation() {
       if (!this.polyline || this.speedKmh <= 0) {
@@ -166,6 +213,11 @@ export default {
         this.simMarker.setLatLng(newPos);
         this.map.panTo(newPos);
 
+        // Send coordinates to the WebSocket server
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+          this.websocket.send(JSON.stringify({ coordinates: newPos }));
+        }
+
         this.animationFrameId = requestAnimationFrame(animate);
       };
 
@@ -200,6 +252,11 @@ export default {
       return latlngs[latlngs.length - 1];
     },
   },
+  beforeDestroy() {
+    if (this.websocket) {
+      this.websocket.close();
+    }
+  },
 };
 </script>
 
@@ -207,5 +264,25 @@ export default {
 #map {
   height: 35rem;
   width: 70rem;
+}
+
+.fixed {
+  position: fixed;
+}
+
+.inset-0 {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.bg-opacity-50 {
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000; /* Ensure the overlay is above the map */
+}
+
+.z-50 {
+  z-index: 1050; /* Ensure the modal is above the overlay */
 }
 </style>
