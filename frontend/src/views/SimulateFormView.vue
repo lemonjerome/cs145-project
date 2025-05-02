@@ -1,38 +1,40 @@
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center bg-gray-100 relative">
-    <h1 class="text-4xl font-bold text-green-500 mb-4">Route Simulation</h1>
+  <div class="min-h-screen flex flex-col items-center justify-center px-6 py-8">
+    <div class="bg-gray-100 rounded-lg shadow-lg w-full min-w-5xl p-6">
+      <h1 class="text-4xl font-bold text-green-500 mb-6 text-center">Route Simulation</h1>
 
-    <!-- Speed & Buttons -->
-    <form @submit.prevent class="mb-6 flex flex-col items-center gap-2">
-      <label class="text-lg font-medium">Speed: {{ speedKmh }} km/h</label>
-      <input
-        type="range"
-        min="0"
-        max="220"
-        step="5"
-        v-model.number="speedKmh"
-        class="w-80"
-        @input="onSpeedChange"
-      />
-      <div class="flex gap-4 mt-2">
-        <button type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded" @click="startSimulation">Start</button>
-        <button type="button" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded" @click="resumeSimulation">Resume</button>
-        <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" @click="pauseSimulation">Pause</button>
+      <!-- Speed & Buttons -->
+      <form @submit.prevent class="mb-6 flex flex-col items-center gap-4 w-full">
+        <label class="text-lg font-medium">Speed: {{ speedKmh }} km/h</label>
+        <input
+          type="range"
+          min="0"
+          max="220"
+          step="5"
+          v-model.number="speedKmh"
+          class="w-full"
+          @input="onSpeedChange"
+        />
+        <div class="flex gap-4 mt-2">
+          <button type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded" @click="startSimulation">Start</button>
+          <button type="button" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded" @click="resumeSimulation">Resume</button>
+          <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" @click="pauseSimulation">Pause</button>
+        </div>
+      </form>
+
+      <!-- Map -->
+      <div class="w-full">
+        <div id="map" class="w-full h-96 border border-gray-300 rounded-lg"></div>
       </div>
-    </form>
 
-    <!-- Map -->
-    <div class="flex flex-col items-center w-full max-w-2xl">
-      <div id="map" class="w-full h-96 border border-gray-300 rounded-lg"></div>
+      <!-- Go Back Button -->
+      <button
+        class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600 mt-6"
+        @click="showModal = true"
+      >
+        Go Back
+      </button>
     </div>
-
-    <!-- Go Back Button -->
-    <button
-      class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600 mt-6"
-      @click="showModal = true"
-    >
-      Go Back
-    </button>
 
     <!-- Confirmation Modal -->
     <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -263,7 +265,37 @@ export default {
 <style scoped>
 #map {
   height: 35rem;
-  width: 70rem;
+  width: 100%; /* Ensure the map takes the full width of its container */
+}
+
+.bg-gray-100 {
+  background-color: #f7fafc; /* Light gray background for the page */
+}
+
+.bg-white {
+  background-color: #ffffff; /* White background for the container */
+}
+
+.rounded-lg {
+  border-radius: 0.5rem; /* Rounded corners for elements */
+}
+
+.shadow-lg {
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1); /* Subtle shadow for depth */
+}
+
+.px-6 {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.max-w-5xl {
+  max-width: 80rem; /* Wider container for better map display */
 }
 
 .fixed {

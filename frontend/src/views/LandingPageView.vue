@@ -1,20 +1,12 @@
 <template>
   <div class="relative min-h-screen flex items-center justify-center">
-    <!-- Background Image -->
-    <div class="absolute inset-0">
-      <img src="../assets/images/gta-san-andreas-map.png" alt="GTA San Andreas Map" class="w-full h-full object-cover" />
-    </div>
-
-    <!-- White Overlay -->
-    <div class="absolute inset-0 bg-white/85"></div>
-
     <!-- Content -->
-    <div class="relative z-10 flex flex-col items-center">
+    <div class="relative flex flex-col items-center">
       <!-- SVG Icons -->
       <div class="flex space-x-4 mb-8">
-        <img src="../assets/svg/ambulance-svgrepo-com.svg" alt="Ambulance" class="h-20 w-20" />
-        <img src="../assets/svg/police-car-svgrepo-com.svg" alt="Police Car" class="h-20 w-20" />
-        <img src="../assets/svg/fire-truck-transport-svgrepo-com.svg" alt="Fire Truck" class="h-20 w-20" />
+        <img src="@/assets/svg/ambulance-svgrepo-com.svg" alt="Ambulance" class="h-20 w-20" />
+        <img src="@/assets/svg/police-car-svgrepo-com.svg" alt="Police Car" class="h-20 w-20" />
+        <img src="@/assets/svg/fire-truck-transport-svgrepo-com.svg" alt="Fire Truck" class="h-20 w-20" />
       </div>
 
       <!-- Title and Subheader -->
