@@ -16,12 +16,13 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include, re_path
-from .views import FrontendAppView
+from . import views
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),  # Include the URLs for the api app
     # Catch-all for Vue routes
-    re_path(r'^(?!api|ws|static).*$', FrontendAppView.as_view(), name='frontend'),
+    path('', views.index),
+    re_path(r'^(?!api|ws|static).*$', views.index),
 ]
