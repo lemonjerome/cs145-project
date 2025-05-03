@@ -30,7 +30,9 @@ DEBUG = config('DEBUG')
 ALLOWED_HOSTS = [
     'localhost',
     '127.0.0.1',
-    '143.198.92.123'
+    '143.198.92.123',
+    'tabipo.xyz',
+    'www.tabipo.xyz',
 ]
 
 
