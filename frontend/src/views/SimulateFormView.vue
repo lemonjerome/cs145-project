@@ -139,8 +139,10 @@ export default {
 
       this.map.panTo(start);
 
-      // Establish WebSocket connection
-      this.websocket = new WebSocket("ws://localhost:8000/ws/simulation/");
+      // Establish WebSocket connection using environment variable
+      const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace('http', 'ws')}/ws/simulation/`;
+      this.websocket = new WebSocket(websocketUrl);
+
       this.websocket.onopen = () => {
         console.log("WebSocket connection established.");
       };

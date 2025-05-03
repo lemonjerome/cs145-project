@@ -7,11 +7,12 @@ import axios from 'axios'
 import App from './App.vue'
 import router from './router'
 
-axios.defaults.baseURL = 'http://localhost:8000/internship'
+// Use environment variables for the base URL
+axios.defaults.baseURL = import.meta.env.VITE_BACKEND_API_URL
 
 const app = createApp(App)
 
 app.use(createPinia())
-app.use(router, axios )
+app.use(router)
 
 app.mount('#app')
