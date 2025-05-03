@@ -41,6 +41,7 @@ export default {
   data() {
     return {
       selectedFile: null,
+      websocket: null, // WebSocket connection
     };
   },
   methods: {
@@ -55,8 +56,25 @@ export default {
           const gpxContent = reader.result;
           // Store the GPX file content in localStorage
           localStorage.setItem("gpxData", gpxContent);
-          // Navigate to the simulation page
-          this.$router.push("/simulate");
+
+          // Establish WebSocket connection
+          const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
+            "http",
+            "ws"
+          )}/ws/simulation/`;
+          const websocket = new WebSocket(websocketUrl);
+
+          websocket.onopen = () => {
+            console.log("WebSocket connection established.");
+            // Store WebSocket in localStorage or Vue state
+            localStorage.setItem("websocket", websocketUrl);
+            this.$router.push("/simulate"); // Navigate to the simulation page
+          };
+
+          websocket.onerror = (error) => {
+            console.error("WebSocket error:", error);
+            alert("Failed to establish WebSocket connection.");
+          };
         };
         reader.readAsText(this.selectedFile); // Read the selected GPX file
       } else {

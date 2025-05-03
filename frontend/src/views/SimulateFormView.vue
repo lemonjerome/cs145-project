@@ -78,8 +78,8 @@ export default {
       pausedDistance: 0,
       startTime: null,
       lastTimestamp: null,
-      websocket: null,
-      showModal: false, // State for showing the confirmation modal
+      websocket: null, // WebSocket connection
+      showModal: false,
     };
   },
   mounted() {
@@ -117,6 +117,25 @@ export default {
     } else {
       alert("No GPX data found in localStorage.");
     }
+
+    // Retrieve WebSocket connection from localStorage
+    const websocketUrl = localStorage.getItem("websocket");
+    if (websocketUrl) {
+      this.websocket = new WebSocket(websocketUrl);
+
+      this.websocket.onopen = () => {
+        console.log("WebSocket connection established.");
+      };
+
+      this.websocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        console.log(data.message);
+      };
+
+      this.websocket.onclose = () => {
+        console.log("WebSocket connection closed.");
+      };
+    }
   },
   methods: {
     startSimulation() {
@@ -139,21 +158,6 @@ export default {
 
       this.map.panTo(start);
 
-      // Establish WebSocket connection using environment variable
-      const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace('http', 'ws')}/ws/simulation/`;
-      this.websocket = new WebSocket(websocketUrl);
-
-      this.websocket.onopen = () => {
-        console.log("WebSocket connection established.");
-      };
-      this.websocket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        console.log(data.message);
-      };
-      this.websocket.onclose = () => {
-        console.log("WebSocket connection closed.");
-      };
-
       this.simulateStep();
     },
     confirmGoBack() {
@@ -161,6 +165,8 @@ export default {
       if (this.websocket) {
         this.websocket.close();
       }
+      // Remove the WebSocket URL from localStorage
+      localStorage.removeItem("websocket");
       // Navigate back to the home page
       this.$router.push("/");
     },
@@ -258,8 +264,9 @@ export default {
   },
   beforeDestroy() {
     if (this.websocket) {
-      this.websocket.close();
+      this.websocket.close(); // Close the WebSocket connection
     }
+    localStorage.removeItem("websocket"); // Remove the WebSocket URL from localStorage
   },
 };
 </script>
