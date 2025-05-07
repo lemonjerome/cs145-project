@@ -34,4 +34,5 @@ class Stoplight(models.Model):
     )
 
     def __str__(self):
-        return f"Stoplight {self.id} in Group {self.group.id} ({self.direction})"
+        return f"Stoplight {self.id} in Group {self.group.id}"
+        # return f"Stoplight {self.id} in Group {self.group.id} ({self.direction})"
