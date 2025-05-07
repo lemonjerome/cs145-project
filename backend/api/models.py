@@ -15,6 +15,7 @@ class Stoplight(models.Model):
         on_delete=models.CASCADE,
         related_name="stoplights"
     )
+    local_id = models.IntegerField()
     lat = models.FloatField()
     lng = models.FloatField()
     direction = models.CharField(
