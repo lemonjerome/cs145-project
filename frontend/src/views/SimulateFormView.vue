@@ -334,12 +334,10 @@ export default {
             if (closestStoplight) {
               // Prepare the JSON for the ESP32
               const jsonToSend = {
+                status: 1
                 groupID: index + 1,  // Assuming group IDs are 1-based
                 stoplightID: closestStoplight.local_id,  // The ID of the closest stoplight
               };
-
-              // log for testing... (inspect in Google Dev Tools ig)
-              console.log(`Sending JSON to ESP32: ${JSON.stringify(jsonToSend)}`);
 
               // Send the JSON to ESP32
               if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
