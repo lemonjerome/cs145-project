@@ -88,6 +88,21 @@ export default {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(this.map);
 
+    this.loadStoplightsData().then((data) => {
+      data.stoplightGroups.forEach((group, index) => {
+        const stoplightGroup = L.layerGroup().addTo(this.map);
+
+        group.stoplights.forEach(stoplight => {
+          const stoplightMarker = L.marker([stoplight.lat, stoplight.lng])
+            .bindPopup(`Stoplight local_id: ${stoplight.local_id} in Group: ${index + 1}`);
+
+          stoplightMarker.addTo(stoplightGroup);
+        });
+
+        this.addGroupToControl(index + 1, stoplightGroup);
+      });
+    });
+
     const gpxData = localStorage.getItem("gpxData");
 
     if (gpxData) {
@@ -223,6 +238,9 @@ export default {
         this.simMarker.setLatLng(newPos);
         this.map.panTo(newPos);
 
+        // Check the distance to stoplight groups
+        this.checkStoplightDistance(newPos);
+
         // Send coordinates to the WebSocket server
         if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
           this.websocket.send(JSON.stringify({ coordinates: newPos }));
@@ -260,6 +278,83 @@ export default {
       }
 
       return latlngs[latlngs.length - 1];
+    },
+    async loadStoplightsData() {
+      const response = await fetch('/stoplights.json');
+      const data = await response.json();
+      // console.log(data);
+      return data;
+    },
+    addGroupToControl(groupId, stoplightGroup) {
+      const overlayMaps = {};
+      overlayMaps[`Stoplight Group ${groupId}`] = stoplightGroup;
+      L.control.layers(null, overlayMaps).addTo(this.map);
+    },
+    toggleStoplights(group, activeStoplightID) {
+      group.stoplights.forEach(stoplight => {
+        const status = (stoplight.local_id === activeStoplightID) ? "green" : "red"; // edit this to add 'yellow' ?
+
+        // Send the status update to ESP32 for each stoplight
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+          this.websocket.send(JSON.stringify({
+            stoplightID: stoplight.local_id,
+            status: status
+          }));
+        }
+      });
+    },
+    checkStoplightDistance(vehiclePos) {
+      const vehicleLatLng = L.latLng(vehiclePos.lat, vehiclePos.lng)
+
+      // Loop through the stoplight groups
+      this.loadStoplightsData().then((data) => {
+        data.stoplightGroups.forEach((group, index) => {
+          const groupCenter = L.latLng(group.lat, group.lng); // Assuming each group has a center
+
+          const distanceToGroup = vehicleLatLng.distanceTo(groupCenter);
+
+          // set to 200 meters prior to stoplight group(s); may vary (input-base?)
+          if (distanceToGroup <= 200) {
+            // The stoplight group is within 200 meters, now check for the closest stoplight
+            let closestStoplight = null;
+            let minDistance = Infinity;
+
+            // Loop through the stoplights in the group
+            group.stoplights.forEach(stoplight => {
+              const stoplightPos = L.latLng(stoplight.lat, stoplight.lng);
+              const distanceToStoplight = vehicleLatLng.distanceTo(stoplightPos);
+
+              if (distanceToStoplight < minDistance) {
+                minDistance = distanceToStoplight;
+                closestStoplight = stoplight;
+              }
+
+            });
+
+            if (closestStoplight) {
+              // Prepare the JSON for the ESP32
+              const jsonToSend = {
+                status: 1,
+                groupID: index + 1,  // Assuming group IDs are 1-based
+                stoplightID: closestStoplight.local_id,  // The ID of the closest stoplight
+              };
+
+              // log for testing... (inspect in Google Dev Tools ig)
+              console.log(`Sending JSON to ESP32: ${JSON.stringify(jsonToSend)}`);
+
+              // Send the JSON to ESP32
+              if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                this.websocket.send(JSON.stringify(jsonToSend));
+              }
+
+              console.log(JSON.stringify(jsonToSend))
+
+              // Toggle stoplights: turn the closest one green and others red
+              this.toggleStoplights(group, closestStoplight.local_id);
+            }
+          }
+        });
+      });
     },
   },
   beforeDestroy() {
