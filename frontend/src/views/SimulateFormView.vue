@@ -334,7 +334,6 @@ export default {
             if (closestStoplight) {
               // Prepare the JSON for the ESP32
               const jsonToSend = {
-                status: 1,
                 groupID: index + 1,  // Assuming group IDs are 1-based
                 stoplightID: closestStoplight.local_id,  // The ID of the closest stoplight
               };
