@@ -319,7 +319,7 @@ export default {
           const groupCenter = L.latLng(group.lat, group.lng);
           const distanceToGroup = vehicleLatLng.distanceTo(groupCenter);
 
-          / !Message handler when inside radius range; send message once only
+          // !Message handler when inside radius range; send message once only
           if (distanceToGroup <= 150) {
             // Group is in range, find closest stoplight in the group
             let closestStoplight = null;
