@@ -80,6 +80,11 @@ export default {
       lastTimestamp: null,
       websocket: null, // WebSocket connection
       showModal: false,
+      lastJSONSent: {
+                status: 0,
+                groupID: 0,  
+                stoplightID: 0,
+              }, // default JSON sent (at beginning)
     };
   },
   mounted() {
@@ -242,9 +247,9 @@ export default {
         this.checkStoplightDistance(newPos);
 
         // Send coordinates to the WebSocket server
-        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-          this.websocket.send(JSON.stringify({ coordinates: newPos }));
-        }
+        // if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        //   this.websocket.send(JSON.stringify({ coordinates: newPos }));
+        // }
 
         this.animationFrameId = requestAnimationFrame(animate);
       };
@@ -295,31 +300,31 @@ export default {
         const status = (stoplight.local_id === activeStoplightID) ? "green" : "red"; // edit this to add 'yellow' ?
 
         // Send the status update to ESP32 for each stoplight
-        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-          this.websocket.send(JSON.stringify({
-            stoplightID: stoplight.local_id,
-            status: status
-          }));
-        }
+        // if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+        //   this.websocket.send(JSON.stringify({
+        //     stoplightID: stoplight.local_id,
+        //     status: status
+        //   }));
+        // }
       });
     },
     checkStoplightDistance(vehiclePos) {
-      const vehicleLatLng = L.latLng(vehiclePos.lat, vehiclePos.lng)
+      const vehicleLatLng = L.latLng(vehiclePos.lat, vehiclePos.lng);
 
-      // Loop through the stoplight groups
       this.loadStoplightsData().then((data) => {
-        data.stoplightGroups.forEach((group, index) => {
-          const groupCenter = L.latLng(group.lat, group.lng); // Assuming each group has a center
+        let messageSent = false;
 
+        for (let index = 0; index < data.stoplightGroups.length; index++) {
+          const group = data.stoplightGroups[index];
+          const groupCenter = L.latLng(group.lat, group.lng);
           const distanceToGroup = vehicleLatLng.distanceTo(groupCenter);
 
-          // set to 200 meters prior to stoplight group(s); may vary (input-base?)
-          if (distanceToGroup <= 200) {
-            // The stoplight group is within 200 meters, now check for the closest stoplight
+          / !Message handler when inside radius range; send message once only
+          if (distanceToGroup <= 150) {
+            // Group is in range, find closest stoplight in the group
             let closestStoplight = null;
             let minDistance = Infinity;
 
-            // Loop through the stoplights in the group
             group.stoplights.forEach(stoplight => {
               const stoplightPos = L.latLng(stoplight.lat, stoplight.lng);
               const distanceToStoplight = vehicleLatLng.distanceTo(stoplightPos);
@@ -328,29 +333,48 @@ export default {
                 minDistance = distanceToStoplight;
                 closestStoplight = stoplight;
               }
-
             });
 
             if (closestStoplight) {
-              // Prepare the JSON for the ESP32
               const jsonToSend = {
-                status: 1
-                groupID: index + 1,  // Assuming group IDs are 1-based
-                stoplightID: closestStoplight.local_id,  // The ID of the closest stoplight
+                status: 1,
+                groupID: index + 1,
+                stoplightID: closestStoplight.local_id,
               };
 
-              // Send the JSON to ESP32
-              if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+              if (
+                JSON.stringify(jsonToSend) !== JSON.stringify(this.lastJSONSent) &&
+                this.websocket &&
+                this.websocket.readyState === WebSocket.OPEN
+              ) {
                 this.websocket.send(JSON.stringify(jsonToSend));
+                this.lastJSONSent = jsonToSend;
               }
 
-              console.log(JSON.stringify(jsonToSend))
-
-              // Toggle stoplights: turn the closest one green and others red
               this.toggleStoplights(group, closestStoplight.local_id);
+              messageSent = true;
+              break;
             }
           }
-        });
+        }
+
+        // !Message handler when exiting the radius range
+        if (!messageSent) {
+          const jsonToSend = {
+            status: 0,
+            groupID: this.lastJSONSent?.groupID ?? 0,
+            stoplightID: this.lastJSONSent?.stoplightID ?? 0,
+          };
+
+          if (
+            JSON.stringify(jsonToSend) !== JSON.stringify(this.lastJSONSent) &&
+            this.websocket &&
+            this.websocket.readyState === WebSocket.OPEN
+          ) {
+            this.websocket.send(JSON.stringify(jsonToSend));
+            this.lastJSONSent = jsonToSend;
+          }
+        }
       });
     },
   },
