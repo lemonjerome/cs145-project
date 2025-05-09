@@ -94,13 +94,33 @@ export default {
       pausedDistance: 0,
       startTime: null,
       lastTimestamp: null,
-      websocket: null,
+      websocket: null, // WebSocket connection
       showModal: false,
       isLoading: true, // Controls the loading modal
     };
   },
   async mounted() {
     try {
+      // Establish WebSocket connection
+      const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
+        "http",
+        "ws"
+      )}/ws/simulation/`;
+      this.websocket = new WebSocket(websocketUrl);
+
+      this.websocket.onopen = () => {
+        console.log("WebSocket connection established.");
+      };
+
+      this.websocket.onerror = (error) => {
+        console.error("WebSocket error:", error);
+        alert("Failed to establish WebSocket connection.");
+      };
+
+      this.websocket.onclose = () => {
+        console.log("WebSocket connection closed.");
+      };
+
       const csrfToken = document.cookie
         .split("; ")
         .find((row) => row.startsWith("csrftoken"))
@@ -112,8 +132,6 @@ export default {
           "X-CSRFToken": csrfToken,
         },
       });
-
-      console.log("Stoplight groups retrieved:", response.data);
 
       const stoplights = response.data.stoplight_groups;
 
@@ -149,6 +167,12 @@ export default {
       // Hide the loading modal
       this.isLoading = false;
     }
+  },
+  beforeDestroy() {
+    if (this.websocket) {
+      this.websocket.close();
+    }
+    localStorage.removeItem("websocket");
   },
   methods: {
     initializeMap() {
@@ -281,68 +305,68 @@ export default {
       }
     },
     simulateStep() {
-     const latlngs = this.polyline.getLatLngs();
-     const totalDistance = this.calculateTotalDistance(latlngs);
-     const speedMs = Math.max(this.speedKmh / 3.6, 0.1); // m/s
+      const latlngs = this.polyline.getLatLngs();
+      const totalDistance = this.calculateTotalDistance(latlngs);
+      const speedMs = Math.max(this.speedKmh / 3.6, 0.1); // m/s
 
-     const animate = (timestamp) => {
-       if (this.isPaused) return;
+      const animate = (timestamp) => {
+        if (this.isPaused) return;
 
-       if (!this.lastTimestamp) this.lastTimestamp = timestamp;
-       const elapsed = (timestamp - this.lastTimestamp) / 1000;
-       this.lastTimestamp = timestamp;
+        if (!this.lastTimestamp) this.lastTimestamp = timestamp;
+        const elapsed = (timestamp - this.lastTimestamp) / 1000;
+        this.lastTimestamp = timestamp;
 
-       this.pausedDistance += speedMs * elapsed;
+        this.pausedDistance += speedMs * elapsed;
 
-       if (this.pausedDistance >= totalDistance) {
-         const finalPoint = latlngs[latlngs.length - 1];
-         this.simMarker.setLatLng(finalPoint);
-         this.map.panTo(finalPoint);
-         return;
-       }
+        if (this.pausedDistance >= totalDistance) {
+          const finalPoint = latlngs[latlngs.length - 1];
+          this.simMarker.setLatLng(finalPoint);
+          this.map.panTo(finalPoint);
+          return;
+        }
 
-       const newPos = this.interpolateLatLng(latlngs, this.pausedDistance);
-       this.simMarker.setLatLng(newPos);
-       this.map.panTo(newPos);
+        const newPos = this.interpolateLatLng(latlngs, this.pausedDistance);
+        this.simMarker.setLatLng(newPos);
+        this.map.panTo(newPos);
 
-       // Send coordinates to the WebSocket server
-      //  if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-      //    this.websocket.send(JSON.stringify({ coordinates: newPos }));
-      //  }
+        // Send coordinates to the WebSocket server
+        if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+          this.websocket.send(JSON.stringify({ coordinates: newPos }));
+        }
 
-       this.animationFrameId = requestAnimationFrame(animate);
-     };
+        this.animationFrameId = requestAnimationFrame(animate);
+      };
 
-     this.animationFrameId = requestAnimationFrame(animate);
-   },
-   calculateTotalDistance(latlngs) {
-     let total = 0;
-     for (let i = 0; i < latlngs.length - 1; i++) {
-       total += latlngs[i].distanceTo(latlngs[i + 1]);
-     }
-     return total;
-   },
-   interpolateLatLng(latlngs, distance) {
-     let accumulated = 0;
+      this.animationFrameId = requestAnimationFrame(animate);
+    },
+    calculateTotalDistance(latlngs) {
+      let total = 0;
+      for (let i = 0; i < latlngs.length - 1; i++) {
+        total += latlngs[i].distanceTo(latlngs[i + 1]);
+      }
+      return total;
+    },
+    interpolateLatLng(latlngs, distance) {
+      let accumulated = 0;
 
-     for (let i = 0; i < latlngs.length - 1; i++) {
-       const segmentDistance = latlngs[i].distanceTo(latlngs[i + 1]);
+      for (let i = 0; i < latlngs.length - 1; i++) {
+        const segmentDistance = latlngs[i].distanceTo(latlngs[i + 1]);
 
-       if (accumulated + segmentDistance >= distance) {
-         const overshoot = distance - accumulated;
-         const ratio = overshoot / segmentDistance;
+        if (accumulated + segmentDistance >= distance) {
+          const overshoot = distance - accumulated;
+          const ratio = overshoot / segmentDistance;
 
-         const lat = latlngs[i].lat + (latlngs[i + 1].lat - latlngs[i].lat) * ratio;
-         const lng = latlngs[i].lng + (latlngs[i + 1].lng - latlngs[i].lng) * ratio;
+          const lat = latlngs[i].lat + (latlngs[i + 1].lat - latlngs[i].lat) * ratio;
+          const lng = latlngs[i].lng + (latlngs[i + 1].lng - latlngs[i].lng) * ratio;
 
-         return L.latLng(lat, lng);
-       }
+          return L.latLng(lat, lng);
+        }
 
-       accumulated += segmentDistance;
-     }
+        accumulated += segmentDistance;
+      }
 
-     return latlngs[latlngs.length - 1];
-   },
+      return latlngs[latlngs.length - 1];
+    },
   },
   beforeDestroy() {
     if (this.websocket) {

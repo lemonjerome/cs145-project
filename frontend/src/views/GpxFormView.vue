@@ -43,7 +43,6 @@ export default {
   data() {
     return {
       selectedFile: null,
-      websocket: null, // WebSocket connection
     };
   },
   methods: {
@@ -52,7 +51,6 @@ export default {
     },
     async handleSubmit() {
       if (this.selectedFile) {
-        // Read the file content as text
         const reader = new FileReader();
         reader.onload = async () => {
           const gpxContent = reader.result;
@@ -81,44 +79,29 @@ export default {
           try {
             // Post the coordinates to the backend
             const csrfToken = document.cookie
-            .split("; ")
-            .find((row) => row.startsWith("csrftoken"))
-            ?.split("=")[1];
+              .split("; ")
+              .find((row) => row.startsWith("csrftoken"))
+              ?.split("=")[1];
 
             await axios.post(
               `${import.meta.env.VITE_BACKEND_API_URL}/route/`,
               { coordinates },
-              { withCredentials: true, 
+              {
+                withCredentials: true,
                 headers: {
-                  "X-CSRFToken": csrfToken, // Add the CSRF token to the headers
+                  "X-CSRFToken": csrfToken,
                 },
-              } // Include cookies in the request
+              }
             );
 
-            // Establish WebSocket connection
-            const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
-              "http",
-              "ws"
-            )}/ws/simulation/`;
-            const websocket = new WebSocket(websocketUrl);
-
-            websocket.onopen = () => {
-              console.log("WebSocket connection established.");
-              // Store WebSocket in localStorage or Vue state
-              localStorage.setItem("websocket", websocketUrl);
-              this.$router.push("/simulate"); // Navigate to the simulation page
-            };
-
-            websocket.onerror = (error) => {
-              console.error("WebSocket error:", error);
-              alert("Failed to establish WebSocket connection.");
-            };
+            // Navigate to the simulation page
+            this.$router.push("/simulate");
           } catch (error) {
             console.error("Error processing the request:", error);
             alert("Failed to process the request.");
           }
         };
-        reader.readAsText(this.selectedFile); // Read the selected GPX file
+        reader.readAsText(this.selectedFile);
       } else {
         alert("Please select a .gpx file before submitting.");
       }
