@@ -1,9 +1,18 @@
 <template>
   <div class="min-h-screen flex flex-col items-center justify-center px-6 py-8">
-    <div v-if="isLoading" class="text-center text-orange-500 font-bold">
-      Loading stoplights...
+    <!-- Loading Modal and Overlay -->
+    <div
+      v-show="isLoading"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
+      <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+        <h2 class="text-xl font-bold mb-4">Loading Stoplights...</h2>
+        <p class="text-gray-600">Please wait while we load the stoplight data.</p>
+      </div>
     </div>
-    <div v-else class="bg-gray-100 rounded-lg shadow-lg w-full min-w-5xl p-6">
+
+    <!-- Main Content -->
+    <div class="bg-gray-100 rounded-lg shadow-lg w-full min-w-5xl p-6">
       <h1 class="text-4xl font-bold text-green-500 mb-6 text-center">Route Simulation</h1>
 
       <!-- Speed & Buttons -->
@@ -68,6 +77,8 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import axios from "axios";
 import trafficLightIcon from "@/assets/svg/traffic-light-svgrepo-com.svg";
+import ambulanceIconUrl from "@/assets/svg/ambulance-svgrepo-com.svg";
+import accidentIconUrl from "@/assets/svg/accident-svgrepo-com.svg";
 
 export default {
   name: "SimulationFormView",
@@ -85,35 +96,58 @@ export default {
       lastTimestamp: null,
       websocket: null,
       showModal: false,
-      isLoading: true,
+      isLoading: true, // Controls the loading modal
     };
   },
   async mounted() {
     try {
       const csrfToken = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("csrftoken"))
-      ?.split("=")[1];
+        .split("; ")
+        .find((row) => row.startsWith("csrftoken"))
+        ?.split("=")[1];
 
-      const response = await axios.get(`${import.meta.env.VITE_BACKEND_API_URL}/stoplights/`,
-      { withCredentials: true,
+      const response = await axios.get(`${import.meta.env.VITE_BACKEND_API_URL}/stoplights/`, {
+        withCredentials: true,
         headers: {
-        "X-CSRFToken": csrfToken, // Add the CSRF token to the headers
+          "X-CSRFToken": csrfToken,
         },
-      } // Include cookies in the request
-      );
+      });
+
       console.log("Stoplight groups retrieved:", response.data);
 
+      const stoplights = response.data.stoplight_groups;
 
+      if (!Array.isArray(stoplights)) {
+        throw new Error("Unexpected response format: stoplight_groups is not an array.");
+      }
+
+      // Wait for the DOM to render the map container
+      this.$nextTick(() => {
+        this.initializeMap();
+
+        // Place stoplight markers
+        stoplights.forEach((stoplight) => {
+          const { lat, lng, groupID } = stoplight;
+
+          const icon = L.icon({
+            iconUrl: trafficLightIcon,
+            iconSize: [32, 32],
+            iconAnchor: [16, 32],
+          });
+
+          L.marker([lat, lng], { icon })
+            .addTo(this.map)
+        });
+
+        // Add start and destination markers
+        this.addRouteMarkers();
+      });
     } catch (error) {
       console.error("Error fetching stoplight groups:", error);
       alert("Failed to fetch stoplight groups.");
     } finally {
+      // Hide the loading modal
       this.isLoading = false;
-
-      this.$nextTick(() => {
-        this.initializeMap();
-      });
     }
   },
   methods: {
@@ -157,23 +191,24 @@ export default {
       } else {
         alert("No GPX data found in localStorage.");
       }
+    },
+    addRouteMarkers() {
+      if (this.routeCoordinates.length > 0) {
+        // Start marker (ambulance icon)
+        const startIcon = L.icon({
+          iconUrl: ambulanceIconUrl,
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+        });
+        this.startMarker = L.marker(this.routeCoordinates[0], { icon: startIcon }).addTo(this.map);
 
-      const websocketUrl = localStorage.getItem("websocket");
-      if (websocketUrl) {
-        this.websocket = new WebSocket(websocketUrl);
-
-        this.websocket.onopen = () => {
-          console.log("WebSocket connection established.");
-        };
-
-        this.websocket.onmessage = (event) => {
-          const data = JSON.parse(event.data);
-          console.log(data.message);
-        };
-
-        this.websocket.onclose = () => {
-          console.log("WebSocket connection closed.");
-        };
+        // Destination marker (accident icon)
+        const destinationIcon = L.icon({
+          iconUrl: accidentIconUrl,
+          iconSize: [32, 32],
+          iconAnchor: [16, 32],
+        });
+        L.marker(this.routeCoordinates[this.routeCoordinates.length - 1], { icon: destinationIcon }).addTo(this.map);
       }
     },
     startSimulation() {
@@ -188,10 +223,23 @@ export default {
       this.lastTimestamp = null;
 
       const start = this.polyline.getLatLngs()[0];
+      const ambulanceIcon = L.icon({
+        iconUrl: ambulanceIconUrl,
+        iconSize: [32, 32],
+        iconAnchor: [16, 32],
+      });
+
+      // Remove the start marker if it exists
+      if (this.startMarker) {
+        this.map.removeLayer(this.startMarker);
+        this.startMarker = null;
+      }
+
+      // Create or update the moving marker
       if (this.simMarker) {
         this.simMarker.setLatLng(start);
       } else {
-        this.simMarker = L.marker(start).addTo(this.map);
+        this.simMarker = L.marker(start, { icon: ambulanceIcon }).addTo(this.map);
       }
 
       this.map.panTo(start);
