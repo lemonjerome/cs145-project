@@ -11,5 +11,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'), // Map @ to the src folder
     },
   },
-  base: '/static/'
+  // for production set to '/static/'
+  // for development set to '/'
+  base: '/'
 })

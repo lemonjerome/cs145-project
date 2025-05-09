@@ -36,6 +36,8 @@
 </template>
 
 <script>
+import axios from "axios";
+
 export default {
   name: "GpxFormView",
   data() {
@@ -48,33 +50,60 @@ export default {
     handleFileChange(event) {
       this.selectedFile = event.target.files[0];
     },
-    handleSubmit() {
+    async handleSubmit() {
       if (this.selectedFile) {
         // Read the file content as text
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onload = async () => {
           const gpxContent = reader.result;
+
           // Store the GPX file content in localStorage
           localStorage.setItem("gpxData", gpxContent);
 
-          // Establish WebSocket connection
-          const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
-            "http",
-            "ws"
-          )}/ws/simulation/`;
-          const websocket = new WebSocket(websocketUrl);
+          // Parse the GPX file to extract coordinates
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(gpxContent, "application/xml");
+          const GPX_NS = xmlDoc.documentElement.namespaceURI;
+          const trackpoints = xmlDoc.getElementsByTagNameNS(GPX_NS, "trkpt");
 
-          websocket.onopen = () => {
-            console.log("WebSocket connection established.");
-            // Store WebSocket in localStorage or Vue state
-            localStorage.setItem("websocket", websocketUrl);
-            this.$router.push("/simulate"); // Navigate to the simulation page
-          };
+          const coordinates = [];
+          for (let i = 0; i < trackpoints.length; i++) {
+            const lat = parseFloat(trackpoints[i].getAttribute("lat"));
+            const lon = parseFloat(trackpoints[i].getAttribute("lon"));
+            coordinates.push([lat, lon]);
+          }
 
-          websocket.onerror = (error) => {
-            console.error("WebSocket error:", error);
-            alert("Failed to establish WebSocket connection.");
-          };
+          if (coordinates.length === 0) {
+            alert("No coordinates found in the GPX file.");
+            return;
+          }
+
+          try {
+            // Post the coordinates to the backend
+            await axios.post(`${import.meta.env.VITE_BACKEND_API_URL}/route/`, { coordinates });
+
+            // Establish WebSocket connection
+            const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
+              "http",
+              "ws"
+            )}/ws/simulation/`;
+            const websocket = new WebSocket(websocketUrl);
+
+            websocket.onopen = () => {
+              console.log("WebSocket connection established.");
+              // Store WebSocket in localStorage or Vue state
+              localStorage.setItem("websocket", websocketUrl);
+              this.$router.push("/simulate"); // Navigate to the simulation page
+            };
+
+            websocket.onerror = (error) => {
+              console.error("WebSocket error:", error);
+              alert("Failed to establish WebSocket connection.");
+            };
+          } catch (error) {
+            console.error("Error processing the request:", error);
+            alert("Failed to process the request.");
+          }
         };
         reader.readAsText(this.selectedFile); // Read the selected GPX file
       } else {
