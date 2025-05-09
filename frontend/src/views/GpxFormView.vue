@@ -80,7 +80,20 @@ export default {
 
           try {
             // Post the coordinates to the backend
-            await axios.post(`${import.meta.env.VITE_BACKEND_API_URL}/route/`, { coordinates });
+            const csrfToken = document.cookie
+            .split("; ")
+            .find((row) => row.startsWith("csrftoken"))
+            ?.split("=")[1];
+
+            await axios.post(
+              `${import.meta.env.VITE_BACKEND_API_URL}/route/`,
+              { coordinates },
+              { withCredentials: true, 
+                headers: {
+                  "X-CSRFToken": csrfToken, // Add the CSRF token to the headers
+                },
+              } // Include cookies in the request
+            );
 
             // Establish WebSocket connection
             const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(

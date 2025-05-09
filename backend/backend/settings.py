@@ -128,6 +128,8 @@ USE_I18N = True
 
 USE_TZ = True
 
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
@@ -143,9 +145,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Allow Vue.js frontend to communicate with Django
 CORS_ALLOWED_ORIGINS = [
     config('FRONTEND_BASE_URL', default='http://localhost:5173'),
+    'http://localhost:5173',
+    'https://tabipo.xyz',
+    'https://www.tabipo.xyz',
 ]
 
-CORS_ALLOW_ALL_ORIGINS = True
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:5173',  # Add your frontend's URL
+    'https://tabipo.xyz',
+    'https://www.tabipo.xyz',
+]
+
+CORS_ALLOW_CREDENTIALS = True
 
 # Channels layer configuration (using in-memory channel layer for simplicity)
 CHANNEL_LAYERS = {

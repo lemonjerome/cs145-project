@@ -13,5 +13,5 @@ export default defineConfig({
   },
   // for production set to '/static/'
   // for development set to '/'
-  base: '/'
+  base: process.env.VITE_BASE_URL,
 })

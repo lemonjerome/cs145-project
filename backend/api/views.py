@@ -14,9 +14,6 @@ def post_route(request):
         if not coordinates:
             return Response({"error": "No coordinates provided."}, status=400)
 
-        # Process the coordinates
-        print("Received coordinates:", coordinates)
-
         # Find stoplight groups within a 10-meter radius
         stoplight_groups = []
         for coord in coordinates:
@@ -24,7 +21,7 @@ def post_route(request):
             for group in StoplightGroup.objects.all():
                 group_location = (group.lat, group.lng)
                 distance = geodesic((lat, lng), group_location).meters
-                if distance <= 10 and group not in stoplight_groups:
+                if distance <= 20 and group not in stoplight_groups:
                     stoplight_groups.append(group)
 
         # Serialize the stoplight group details and store them in the session
@@ -33,7 +30,7 @@ def post_route(request):
             for group in stoplight_groups
         ]
         request.session['stoplight_groups'] = serialized_groups
-
+        request.session.modified = True
         return Response({"message": "Coordinates processed successfully."}, status=200)
     except Exception as e:
         return Response({"error": str(e)}, status=400)

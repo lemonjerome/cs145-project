@@ -67,6 +67,7 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import axios from "axios";
+import trafficLightIcon from "@/assets/svg/traffic-light-svgrepo-com.svg";
 
 export default {
   name: "SimulationFormView",
@@ -89,8 +90,20 @@ export default {
   },
   async mounted() {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_BACKEND_API_URL}/stoplights/`);
+      const csrfToken = document.cookie
+      .split("; ")
+      .find((row) => row.startsWith("csrftoken"))
+      ?.split("=")[1];
+
+      const response = await axios.get(`${import.meta.env.VITE_BACKEND_API_URL}/stoplights/`,
+      { withCredentials: true,
+        headers: {
+        "X-CSRFToken": csrfToken, // Add the CSRF token to the headers
+        },
+      } // Include cookies in the request
+      );
       console.log("Stoplight groups retrieved:", response.data);
+
 
     } catch (error) {
       console.error("Error fetching stoplight groups:", error);
@@ -219,11 +232,72 @@ export default {
         this.simulateStep();
       }
     },
+    simulateStep() {
+     const latlngs = this.polyline.getLatLngs();
+     const totalDistance = this.calculateTotalDistance(latlngs);
+     const speedMs = Math.max(this.speedKmh / 3.6, 0.1); // m/s
+
+     const animate = (timestamp) => {
+       if (this.isPaused) return;
+
+       if (!this.lastTimestamp) this.lastTimestamp = timestamp;
+       const elapsed = (timestamp - this.lastTimestamp) / 1000;
+       this.lastTimestamp = timestamp;
+
+       this.pausedDistance += speedMs * elapsed;
+
+       if (this.pausedDistance >= totalDistance) {
+         const finalPoint = latlngs[latlngs.length - 1];
+         this.simMarker.setLatLng(finalPoint);
+         this.map.panTo(finalPoint);
+         return;
+       }
+
+       const newPos = this.interpolateLatLng(latlngs, this.pausedDistance);
+       this.simMarker.setLatLng(newPos);
+       this.map.panTo(newPos);
+
+       // Send coordinates to the WebSocket server
+      //  if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+      //    this.websocket.send(JSON.stringify({ coordinates: newPos }));
+      //  }
+
+       this.animationFrameId = requestAnimationFrame(animate);
+     };
+
+     this.animationFrameId = requestAnimationFrame(animate);
+   },
+   calculateTotalDistance(latlngs) {
+     let total = 0;
+     for (let i = 0; i < latlngs.length - 1; i++) {
+       total += latlngs[i].distanceTo(latlngs[i + 1]);
+     }
+     return total;
+   },
+   interpolateLatLng(latlngs, distance) {
+     let accumulated = 0;
+
+     for (let i = 0; i < latlngs.length - 1; i++) {
+       const segmentDistance = latlngs[i].distanceTo(latlngs[i + 1]);
+
+       if (accumulated + segmentDistance >= distance) {
+         const overshoot = distance - accumulated;
+         const ratio = overshoot / segmentDistance;
+
+         const lat = latlngs[i].lat + (latlngs[i + 1].lat - latlngs[i].lat) * ratio;
+         const lng = latlngs[i].lng + (latlngs[i + 1].lng - latlngs[i].lng) * ratio;
+
+         return L.latLng(lat, lng);
+       }
+
+       accumulated += segmentDistance;
+     }
+
+     return latlngs[latlngs.length - 1];
+   },
   },
-  beforeUnmount() {
-    // Close the WebSocket connection when the component is unmounted
+  beforeDestroy() {
     if (this.websocket) {
-      console.log("Closing WebSocket connection...");
       this.websocket.close();
     }
     localStorage.removeItem("websocket");
