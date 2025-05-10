@@ -48,9 +48,6 @@ def post_route(request):
             for stoplight in stoplights
         ]
 
-        print(serialized_groups)
-        print(serialized_stoplights)
-
         request.session['stoplight_groups'] = serialized_groups
         request.session['stoplights'] = serialized_stoplights
         request.session.modified = True
