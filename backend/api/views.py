@@ -38,7 +38,8 @@ def post_route(request):
 
         serialized_stoplights = [
             {
-                "group": stoplight.group.id, 
+                "stoplightID": stoplight.id,
+                "groupID": stoplight.group.id, 
                 "local_id": stoplight.local_id,
                 "lat": stoplight.lat,
                 "lng": stoplight.lng,

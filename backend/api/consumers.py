@@ -8,13 +8,21 @@ class SimulationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         await self.accept()
         self.active_groups = set()  # Track active stoplight groups for the simulation
+        self.active_stoplights = set() # Track active stoplights for the simulation
 
-        # Retrieve stoplight groups from the session
+        # Retrieve stoplight groups and stoplights from the session
         self.stoplight_groups = self.scope["session"].get("stoplight_groups", [])
+        self.stoplights = self.scope["session"].get("stoplights", [])
+
         if not self.stoplight_groups:
             print("No stoplight groups found in the session.")
         else:
             print(f"Stoplight groups loaded: {self.stoplight_groups}")
+
+        if not self.stoplights:
+            print(f"No stoplights in {self.stoplight_groups}")
+        else:
+            print(f"Stoplights loaded: {self.stoplights}")
 
         print("Simulation WebSocket connection established.")
 
@@ -32,27 +40,67 @@ class SimulationConsumer(AsyncWebsocketConsumer):
         channel_layer = get_channel_layer()
 
         for group in self.stoplight_groups:
-            group_location = (group["lat"], group["lng"])
-            distance = geodesic(current_location, group_location).meters
+          group_id = group["groupID"]
+          group_location = (group["lat"], group["lng"])
+          distance_to_group = geodesic(current_location, group_location).meters
 
-            if distance <= 100 and group["groupID"] not in self.active_groups:
-                # Entering the radius
-                self.active_groups.add(group["groupID"])
-                message = {"activate": 1, "groupID": group["groupID"]}
-                print(f"Broadcasting message to ESP WebSocket: {message}")
-                await channel_layer.group_send(
-                    "esp32_group",
-                    {"type": "broadcast_message", "message": message},
-                )
-            elif distance > 100 and group["groupID"] in self.active_groups:
-                # Exiting the radius
-                self.active_groups.remove(group["groupID"])
-                message = {"activate": 0, "groupID": group["groupID"]}
-                print(f"Broadcasting message to ESP WebSocket: {message}")
-                await channel_layer.group_send(
-                    "esp32_group",
-                    {"type": "broadcast_message", "message": message},
-                )
+          if distance_to_group <= 100:
+              if group_id not in self.active_groups:
+                  # Entering the radius
+                  self.active_groups.add(group_id)
+
+                  # Find the closest stoplight in this group
+                  group_stoplights = [
+                      s for s in self.stoplights if s["groupID"] == group_id
+                  ]
+
+                  if group_stoplights:
+                      closest_stoplight = min(
+                          group_stoplights,
+                          key=lambda s: geodesic(
+                              current_location, (s["lookahead_lat"], s["lookahead_lng"])
+                          ).meters
+                      )
+
+                      # Track this stoplight as the active one
+                      self.active_stoplights.add(closest_stoplight["stoplightID"])
+
+                      message = {
+                          "activate": 1,
+                          "groupID": group_id,
+                          "stoplightID": closest_stoplight["stoplightID"],
+                      }
+
+                      print(f"Broadcasting message to ESP Websocket: {message}")
+
+                      await channel_layer.group_send(
+                          "esp32_group",
+                          {"type": "broadcast_message", "message": message},
+                      )
+          else:
+              if group_id in self.active_groups:
+                  # Exiting the radius
+                  self.active_groups.remove(group_id)
+
+                  # Deactivate the previously active stoplight in this group
+                  group_stoplights = [
+                      s for s in self.stoplights if s["groupID"] == group_id
+                  ]
+                  for stoplight in group_stoplights:
+                      if stoplight["stoplightID"] in self.active_stoplights:
+                          self.active_stoplights.remove(stoplight["stoplightID"])
+                          message = {
+                              "activate": 0,
+                              "groupID": group_id,
+                              "stoplightID": stoplight["stoplightID"],
+                          }
+
+                          print(f"Broadcasting message to ESP Websocket: {message}")
+                          
+                          await channel_layer.group_send(
+                              "esp32_group",
+                              {"type": "broadcast_message", "message": message},
+                          )
 
 class ESP32Consumer(AsyncWebsocketConsumer):
     async def connect(self):
