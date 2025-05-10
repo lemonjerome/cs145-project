@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from .models import StoplightGroup
+from .models import StoplightGroup, Stoplight
 from geopy.distance import geodesic
 
 
@@ -16,6 +16,7 @@ def post_route(request):
 
         # Find stoplight groups within a 10-meter radius
         stoplight_groups = []
+        stoplights = []
         for coord in coordinates:
             lat, lng = coord
             for group in StoplightGroup.objects.all():
@@ -24,12 +25,34 @@ def post_route(request):
                 if distance <= 20 and group not in stoplight_groups:
                     stoplight_groups.append(group)
 
+        # Collect only the stoplights that belong to the stoplight_groups 
+        for group in stoplight_groups:
+          group_stoplights = Stoplight.objects.filter(group=group)
+          stoplights.extend(group_stoplights)
+
         # Serialize the stoplight group details and store them in the session
         serialized_groups = [
             {"groupID": group.id, "lat": group.lat, "lng": group.lng}
             for group in stoplight_groups
         ]
+
+        serialized_stoplights = [
+            {
+                "group": stoplight.group.id, 
+                "local_id": stoplight.local_id,
+                "lat": stoplight.lat,
+                "lng": stoplight.lng,
+                "lookahead_lat": stoplight.lookahead_lat,
+                "lookahead_lng": stoplight.lookahead_lng
+            }
+            for stoplight in stoplights
+        ]
+
+        print(serialized_groups)
+        print(serialized_stoplights)
+
         request.session['stoplight_groups'] = serialized_groups
+        request.session['stoplights'] = serialized_stoplights
         request.session.modified = True
         return Response({"message": "Coordinates processed successfully."}, status=200)
     except Exception as e:
