@@ -18,20 +18,8 @@ class Stoplight(models.Model):
     local_id = models.IntegerField()
     lat = models.FloatField()
     lng = models.FloatField()
-    direction = models.CharField(
-        max_length=10,
-        choices=[
-            ('N', 'North'),
-            ('NE', 'Northeast'),
-            ('E', 'East'),
-            ('SE', 'Southeast'),
-            ('S', 'South'),
-            ('SW', 'Southwest'),
-            ('W', 'West'),
-            ('NW', 'Northwest')
-        ],
-        blank=True  # optional for now ; can neglect => purpose of blank=True
-    )
+    lookahead_lat = models.FloatField()
+    lookahead_lng = models.FloatField()
 
     def __str__(self):
         return f"Stoplight {self.id} in Group {self.group.id} at ({self.lat}, {self.lng})"
