@@ -61,4 +61,5 @@ def post_route(request):
 def get_stoplights(request):
     # Retrieve the stoplight groups from the session
     stoplight_groups = request.session.get('stoplight_groups', [])
-    return Response({"stoplight_groups": stoplight_groups}, status=200)
+    stoplights = request.session.get('stoplights', [])
+    return Response({"stoplight_groups": stoplight_groups, "stoplights": stoplights}, status=200)

@@ -79,6 +79,7 @@ import axios from "axios";
 import trafficLightIcon from "@/assets/svg/traffic-light-svgrepo-com.svg";
 import ambulanceIconUrl from "@/assets/svg/ambulance-svgrepo-com.svg";
 import accidentIconUrl from "@/assets/svg/accident-svgrepo-com.svg";
+import redDotIcon from "@/assets/svg/red-circle-svgrepo-com.svg";
 
 export default {
   name: "SimulationFormView",
@@ -133,9 +134,10 @@ export default {
         },
       });
 
-      const stoplights = response.data.stoplight_groups;
+      const stoplight_groups = response.data.stoplight_groups;
+      const stoplights = response.data.stoplights;
 
-      if (!Array.isArray(stoplights)) {
+      if (!Array.isArray(stoplight_groups)) {
         throw new Error("Unexpected response format: stoplight_groups is not an array.");
       }
 
@@ -143,14 +145,28 @@ export default {
       this.$nextTick(() => {
         this.initializeMap();
 
-        // Place stoplight markers
-        stoplights.forEach((stoplight) => {
-          const { lat, lng, groupID } = stoplight;
+        // Place stoplight group markers
+        stoplight_groups.forEach((stoplight_group) => {
+          const { lat, lng, groupID } = stoplight_group;
 
           const icon = L.icon({
             iconUrl: trafficLightIcon,
             iconSize: [32, 32],
             iconAnchor: [16, 32],
+          });
+
+          L.marker([lat, lng], { icon })
+            .addTo(this.map)
+        });
+
+        // Place stoplight markers
+        stoplights.forEach((stoplight) => {
+          const { stoplightID, groupID, local_id, lat, lng, lookahead_lat, lookahead_lng } = stoplight;
+
+          const icon = L.icon({
+            iconUrl: redDotIcon,
+            iconSize: [5, 5],
+            iconAnchor: [5, 5],
           });
 
           L.marker([lat, lng], { icon })
