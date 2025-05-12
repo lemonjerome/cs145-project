@@ -51,7 +51,6 @@ class SimulationConsumer(AsyncWebsocketConsumer):
                         # Send to frontend WebSocket
                         await self.send(text_data=json.dumps(message))
 
-                        # Send to ESP32 WebSocket
                         await channel_layer.group_send(
                             "esp32_group",
                             {"type": "broadcast_message", "message": message},
@@ -74,7 +73,6 @@ class SimulationConsumer(AsyncWebsocketConsumer):
                         # Send to frontend WebSocket
                         await self.send(text_data=json.dumps(message))
 
-                        # Send to ESP32 WebSocket
                         await channel_layer.group_send(
                             "esp32_group",
                             {"type": "broadcast_message", "message": message},
@@ -90,10 +88,6 @@ class ESP32Consumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_discard("esp32_group", self.channel_name)
         print("ESP32 WebSocket connection closed.")
 
-    async def receive(self, text_data):
-        data = json.loads(text_data)
-        print(f"Received from ESP32: {data}")  # Print received data
-        await self.send(text_data=json.dumps({"message": f"Echo: {data}"}))
 
     async def broadcast_message(self, event):
         message = event["message"]

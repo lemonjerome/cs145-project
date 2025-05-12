@@ -1,14 +1,5 @@
 <template>
   <div class="min-h-screen flex flex-col items-center justify-center px-6 py-8">
-    <!-- Activated Bubble -->
-    <div
-      v-if="activatedGroup"
-      class="absolute bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50"
-      :style="{ top: `${activatedGroupCoords.y}px`, left: `${activatedGroupCoords.x}px` }"
-    >
-      Activated Group {{ activatedGroup }}
-    </div>
-
     <!-- Loading Modal and Overlay -->
     <div
       v-show="isLoading"
@@ -88,7 +79,7 @@ import axios from "axios";
 import trafficLightIcon from "@/assets/svg/traffic-light-svgrepo-com.svg";
 import ambulanceIconUrl from "@/assets/svg/ambulance-svgrepo-com.svg";
 import accidentIconUrl from "@/assets/svg/accident-svgrepo-com.svg";
-import redDotIcon from "@/assets/svg/red-circle-svgrepo-com.svg";
+import greenCircleIcon from "@/assets/svg/green-circle-svgrepo-com.svg"; // Import the green circle SVG
 
 export default {
   name: "SimulationFormView",
@@ -108,8 +99,8 @@ export default {
       showModal: false,
       isLoading: true, // Controls the loading modal
       activatedGroup: null, // Track the currently activated group
-      activatedGroupCoords: { x: 0, y: 0 }, // Coordinates for the activated bubble
       groupMarkers: {}, // Store group markers for reference
+      activatedMarker: null, // Marker for the activated group
     };
   },
   async mounted() {
@@ -131,14 +122,13 @@ export default {
           // Get the marker's screen position
           const marker = this.groupMarkers[message.groupID];
           if (marker) {
-            const markerLatLng = marker.getLatLng();
-            const point = this.map.latLngToContainerPoint(markerLatLng);
-            this.activatedGroupCoords = { x: point.x, y: point.y };
+            this.addActivatedMarker(marker.getLatLng());
           }
         } else if (message.activate === 0) {
           // Group deactivated
           if (this.activatedGroup === message.groupID) {
             this.activatedGroup = null;
+            this.removeActivatedMarker();
           }
         }
       };
@@ -186,7 +176,7 @@ export default {
           const icon = L.icon({
             iconUrl: trafficLightIcon,
             iconSize: [32, 32],
-            iconAnchor: [16, 32],
+            iconAnchor: [20, 15],
           });
 
           const marker = L.marker([lat, lng], { icon }).addTo(this.map);
@@ -204,13 +194,26 @@ export default {
       this.isLoading = false;
     }
   },
-  beforeDestroy() {
-    if (this.websocket) {
-      this.websocket.close();
-    }
-    localStorage.removeItem("websocket");
-  },
   methods: {
+    addActivatedMarker(latlng) {
+      this.removeActivatedMarker(); // Remove existing marker if any
+
+      const icon = L.icon({
+        iconUrl: greenCircleIcon, // Use the green circle SVG
+        iconSize: [64, 64], // Adjust size as needed
+        iconAnchor: [36, 30], // Center the icon
+      });
+
+      // Add the green circle marker with a lower zIndexOffset
+      this.activatedMarker = L.marker(latlng, { icon, zIndexOffset: -1000 }).addTo(this.map);
+    },
+    removeActivatedMarker() {
+      if (this.activatedMarker) {
+        this.map.removeLayer(this.activatedMarker);
+        this.activatedMarker = null;
+      }
+    },
+    
     initializeMap() {
       const mapContainer = document.getElementById("map");
       if (!mapContainer) {
@@ -258,7 +261,7 @@ export default {
         const startIcon = L.icon({
           iconUrl: ambulanceIconUrl,
           iconSize: [32, 32],
-          iconAnchor: [16, 32],
+          iconAnchor: [16, 20],
         });
         this.startMarker = L.marker(this.routeCoordinates[0], { icon: startIcon }).addTo(this.map);
 
@@ -286,7 +289,7 @@ export default {
       const ambulanceIcon = L.icon({
         iconUrl: ambulanceIconUrl,
         iconSize: [32, 32],
-        iconAnchor: [16, 32],
+        iconAnchor: [16, 20],
       });
 
       // Remove the start marker if it exists
@@ -414,6 +417,28 @@ export default {
 </script>
 
 <style scoped>
+.custom-bubble-icon .bubble-content {
+  display: flex;
+  align-items: center;
+  background: white;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 2px solid black;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.custom-bubble-icon .green-dot {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+}
+
+.custom-bubble-icon .bubble-text {
+  font-size: 14px;
+  font-weight: bold;
+  color: black;
+}
+
 #map {
   height: 35rem;
   width: 100%;
@@ -456,5 +481,39 @@ export default {
 }
 .z-50 {
   z-index: 1050;
+}
+.speech-bubble .bubble {
+  position: relative;
+  background: white; /* White background */
+  color: black; /* Black text */
+  padding: 10px;
+  border-radius: 5px;
+  text-align: center;
+  font-size: 14px;
+  border: 2px solid black; /* Black border */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Optional shadow for better visibility */
+}
+.speech-bubble .bubble::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 10px 10px 0 10px;
+  border-color: black transparent transparent transparent; /* Black triangle border */
+}
+.activated-marker .activated-bubble {
+  position: relative;
+  background: white; /* White background */
+  color: black; /* Black text */
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid black; /* Black border */
+  font-size: 12px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Optional shadow for better visibility */
 }
 </style>
