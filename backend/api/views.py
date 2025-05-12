@@ -14,9 +14,11 @@ def post_route(request):
         if not coordinates:
             return Response({"error": "No coordinates provided."}, status=400)
 
-        # Find stoplight groups within a 10-meter radius
+        # Find stoplight groups within a 20-meter radius
         stoplight_groups = []
         stoplights = []
+        closest_stoplights = {}  # Store the closest stoplight for each group
+
         for coord in coordinates:
             lat, lng = coord
             for group in StoplightGroup.objects.all():
@@ -25,10 +27,24 @@ def post_route(request):
                 if distance <= 20 and group not in stoplight_groups:
                     stoplight_groups.append(group)
 
-        # Collect only the stoplights that belong to the stoplight_groups 
+        # Collect only the stoplights that belong to the stoplight_groups
         for group in stoplight_groups:
-          group_stoplights = Stoplight.objects.filter(group=group)
-          stoplights.extend(group_stoplights)
+            group_stoplights = Stoplight.objects.filter(group=group)
+            stoplights.extend(group_stoplights)
+
+            # Find the closest stoplight for this group
+            if group_stoplights:
+                closest_stoplight = min(
+                    group_stoplights,
+                    key=lambda s: geodesic(
+                        (group.lat, group.lng), (s.lookahead_lat, s.lookahead_lng)
+                    ).meters
+                )
+                closest_stoplights[group.id] = {
+                    "stoplightID": closest_stoplight.id,
+                    "lookahead_lat": closest_stoplight.lookahead_lat,
+                    "lookahead_lng": closest_stoplight.lookahead_lng,
+                }
 
         # Serialize the stoplight group details and store them in the session
         serialized_groups = [
@@ -39,18 +55,16 @@ def post_route(request):
         serialized_stoplights = [
             {
                 "stoplightID": stoplight.id,
-                "groupID": stoplight.group.id, 
-                "local_id": stoplight.local_id,
-                "lat": stoplight.lat,
-                "lng": stoplight.lng,
+                "groupID": stoplight.group.id,
                 "lookahead_lat": stoplight.lookahead_lat,
-                "lookahead_lng": stoplight.lookahead_lng
+                "lookahead_lng": stoplight.lookahead_lng,
             }
             for stoplight in stoplights
         ]
 
         request.session['stoplight_groups'] = serialized_groups
         request.session['stoplights'] = serialized_stoplights
+        request.session['closest_stoplights'] = closest_stoplights  # Store closest stoplights
         request.session.modified = True
         return Response({"message": "Coordinates processed successfully."}, status=200)
     except Exception as e:

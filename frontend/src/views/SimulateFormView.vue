@@ -1,5 +1,14 @@
 <template>
   <div class="min-h-screen flex flex-col items-center justify-center px-6 py-8">
+    <!-- Activated Bubble -->
+    <div
+      v-if="activatedGroup"
+      class="absolute bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50"
+      :style="{ top: `${activatedGroupCoords.y}px`, left: `${activatedGroupCoords.x}px` }"
+    >
+      Activated Group {{ activatedGroup }}
+    </div>
+
     <!-- Loading Modal and Overlay -->
     <div
       v-show="isLoading"
@@ -98,6 +107,9 @@ export default {
       websocket: null, // WebSocket connection
       showModal: false,
       isLoading: true, // Controls the loading modal
+      activatedGroup: null, // Track the currently activated group
+      activatedGroupCoords: { x: 0, y: 0 }, // Coordinates for the activated bubble
+      groupMarkers: {}, // Store group markers for reference
     };
   },
   async mounted() {
@@ -108,6 +120,28 @@ export default {
         "ws"
       )}/ws/simulation/`;
       this.websocket = new WebSocket(websocketUrl);
+
+      this.websocket.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+
+        if (message.activate === 1) {
+          // Group activated
+          this.activatedGroup = message.groupID;
+
+          // Get the marker's screen position
+          const marker = this.groupMarkers[message.groupID];
+          if (marker) {
+            const markerLatLng = marker.getLatLng();
+            const point = this.map.latLngToContainerPoint(markerLatLng);
+            this.activatedGroupCoords = { x: point.x, y: point.y };
+          }
+        } else if (message.activate === 0) {
+          // Group deactivated
+          if (this.activatedGroup === message.groupID) {
+            this.activatedGroup = null;
+          }
+        }
+      };
 
       this.websocket.onopen = () => {
         console.log("WebSocket connection established.");
@@ -155,22 +189,8 @@ export default {
             iconAnchor: [16, 32],
           });
 
-          L.marker([lat, lng], { icon })
-            .addTo(this.map)
-        });
-
-        // Place stoplight markers
-        stoplights.forEach((stoplight) => {
-          const { stoplightID, groupID, local_id, lat, lng, lookahead_lat, lookahead_lng } = stoplight;
-
-          const icon = L.icon({
-            iconUrl: redDotIcon,
-            iconSize: [5, 5],
-            iconAnchor: [5, 5],
-          });
-
-          L.marker([lat, lng], { icon })
-            .addTo(this.map)
+          const marker = L.marker([lat, lng], { icon }).addTo(this.map);
+          this.groupMarkers[groupID] = marker; // Store marker reference
         });
 
         // Add start and destination markers

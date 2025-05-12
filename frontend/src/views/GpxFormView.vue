@@ -71,6 +71,7 @@ export default {
             coordinates.push([lat, lon]);
           }
 
+
           if (coordinates.length === 0) {
             alert("No coordinates found in the GPX file.");
             return;
