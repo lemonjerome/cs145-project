@@ -13,16 +13,27 @@ class SimulationConsumer(AsyncWebsocketConsumer):
         self.stoplight_groups = self.scope["session"].get("stoplight_groups", [])
         self.closest_stoplights = self.scope["session"].get("closest_stoplights", {})
 
+
         print("Simulation WebSocket connection established.")
 
     async def disconnect(self, close_code):
         print("Simulation WebSocket connection closed.")
+        # Deactivate all stoplights when the WebSocket disconnects
+        await self.deactivate_all_stoplights()
 
     async def receive(self, text_data):
         data = json.loads(text_data)
+
+        # Handle "end_simulation" message
+        if data.get("end_simulation"):
+            print("End of simulation received. Deactivating all stoplights.")
+            await self.deactivate_all_stoplights()
+            return
+
         coordinates = data.get("coordinates")
         if not coordinates:
             return
+
 
         # Check proximity to stoplight groups
         current_location = (coordinates["lat"], coordinates["lng"])
@@ -77,6 +88,33 @@ class SimulationConsumer(AsyncWebsocketConsumer):
                             "esp32_group",
                             {"type": "broadcast_message", "message": message},
                         )
+
+    async def deactivate_all_stoplights(self):
+        """
+        Deactivate all active stoplights and notify the frontend and ESP32 WebSocket group.
+        """
+        channel_layer = get_channel_layer()
+
+        for group_id in list(self.active_groups):  # Use a copy of the set to avoid modification during iteration
+            self.active_groups.remove(group_id)
+
+            # Deactivate the stoplight for this group
+            closest_stoplight = self.closest_stoplights.get(str(group_id))
+            if closest_stoplight:
+                message = {
+                    "activate": 0,
+                    "groupID": group_id,
+                    "stoplightID": closest_stoplight["stoplightID"],
+                }
+
+                # Send to frontend WebSocket
+                await self.send(text_data=json.dumps(message))
+
+                # Broadcast to ESP32 WebSocket group
+                await channel_layer.group_send(
+                    "esp32_group",
+                    {"type": "broadcast_message", "message": message},
+                )
 
 class ESP32Consumer(AsyncWebsocketConsumer):
     async def connect(self):

@@ -200,12 +200,12 @@ export default {
 
       const icon = L.icon({
         iconUrl: greenCircleIcon, // Use the green circle SVG
-        iconSize: [64, 64], // Adjust size as needed
-        iconAnchor: [36, 30], // Center the icon
+        iconSize: [170, 170], // Adjust size as needed
+        iconAnchor: [88, 82], // Center the icon
       });
 
       // Add the green circle marker with a lower zIndexOffset
-      this.activatedMarker = L.marker(latlng, { icon, zIndexOffset: -1000 }).addTo(this.map);
+      this.activatedMarker = L.marker(latlng, { icon, zIndexOffset: -1000, opacity: 0.6}).addTo(this.map);
     },
     removeActivatedMarker() {
       if (this.activatedMarker) {
@@ -361,6 +361,12 @@ export default {
           const finalPoint = latlngs[latlngs.length - 1];
           this.simMarker.setLatLng(finalPoint);
           this.map.panTo(finalPoint);
+
+          // Send an "end message" to the backend
+          if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+            this.websocket.send(JSON.stringify({ end_simulation: true }));
+          }
+
           return;
         }
 
