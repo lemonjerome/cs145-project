@@ -259,7 +259,8 @@ export default {
       const endLat = end.lat || end[0];
       const endLng = end.lng || end[1];
 
-      const osrmUrl = `http://localhost:5000/route/v1/car/${startLng},${startLat};${endLng},${endLat}?geometries=geojson`;
+      const osrmBaseUrl = import.meta.env.VITE_OSRM_URL;
+      const osrmUrl = `${osrmBaseUrl}/route/v1/car/${startLng},${startLat};${endLng},${endLat}?geometries=geojson`;
 
       fetch(osrmUrl)
         .then((res) => res.json())
@@ -371,7 +372,7 @@ export default {
     const init = async () => {
       try {
         const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
-          "http",
+          "https",
           "ws"
         )}/ws/live/`;
         this.websocket = new WebSocket(websocketUrl);
