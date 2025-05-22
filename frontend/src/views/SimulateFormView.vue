@@ -108,7 +108,7 @@ export default {
       // Establish WebSocket connection
       const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
         "https",
-        "ws"
+        "wss"
       )}/ws/simulation/`;
       this.websocket = new WebSocket(websocketUrl);
 
