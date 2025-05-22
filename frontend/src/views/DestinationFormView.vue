@@ -14,30 +14,56 @@
             class="border border-gray-300 rounded-lg p-2 w-full bg-gray-200"
             placeholder="Current GPS Position"
           />
-          <button
-            @click="getCurrentPosition"
-            class="bg-green-500 text-white px-4 py-2 rounded-lg shadow hover:bg-green-600"
-          >
-            Get Position
-          </button>
         </div>
 
       <!-- Destination Search -->
-        <input
-          type="text"
-          v-model="destination"
-          @input="searchDestination"
-          class="border border-gray-300 rounded-lg p-2 w-full mb-4"
-          placeholder="Search Destination"
-        />
+        <div class="flex items-center space-x-4 mb-4">
+          <input
+            type="text"
+            v-model="destination"
+            class="border border-gray-300 rounded-lg p-2 w-full bg-white-200"
+            placeholder="Search Destination"
+          />
+
+          <button 
+            @click="searchDestination"
+            class="bg-green-500 text-white px-4 py-2 rounded-lg shadow hover:bg-green-600"
+          >
+            Trace Route
+          </button>
+        </div>
+
         <div id="map" class="w-full h-96 border border-gray-300 rounded-lg"></div>
 
       <!-- Go Back Button -->
-      <router-link to="/" class="mt-6 block text-center">
-        <button class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600">
-          Go Back
-        </button>
-      </router-link>
+      <button
+        class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600 mt-6"
+        @click="showModal = true"
+      >
+        Go Back
+      </button>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
+      <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+        <h2 class="text-xl font-bold mb-4">Are you sure you want to go back?</h2>
+        <p class="text-gray-600 mb-6">This will stop the simulation and disconnect from the server.</p>
+        <div class="flex justify-center gap-4">
+          <button
+            class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+            @click="confirmGoBack"
+          >
+            Yes, Go Back
+          </button>
+          <button
+            class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded"
+            @click="showModal = false"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -45,7 +71,12 @@
 <script>
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import markerIcon from "../assets/svg/location-pin-svgrepo-com.svg";
+import axios from 'axios';
+import trafficLightIcon from "@/assets/svg/traffic-light-svgrepo-com.svg";
+import ambulanceIconUrl from "@/assets/svg/ambulance-svgrepo-com.svg";
+import accidentIconUrl from "@/assets/svg/accident-svgrepo-com.svg";
+import greenCircleIcon from "@/assets/svg/green-circle-svgrepo-com.svg";
+
 
 export default {
   name: "DestinationFormView",
@@ -54,22 +85,75 @@ export default {
       currentPosition: "",
       destination: "",
       map: null,
-      marker: null,
+      positionMarker: null,
+      destinationMarker: null,
+      showModal: false,
+      websocket:null, 
+      watchId: null,
+      routePolyline: null,
+      gpxGenerated: false,
+      groupMarkers: {},
+      routeCoordinates: [],
+      activatedMarker: null,
     };
   },
   methods: {
-    getCurrentPosition() {
+    addActivatedMarker(latlng) {
+      this.removeActivatedMarker(); // Remove existing marker if any
+
+      const icon = L.icon({
+        iconUrl: greenCircleIcon, // Use the green circle SVG
+        iconSize: [170, 170], // Adjust size as needed
+        iconAnchor: [88, 82], // Center the icon
+      });
+
+      // Add the green circle marker with a lower zIndexOffset
+      this.activatedMarker = L.marker(latlng, { icon, zIndexOffset: -1000, opacity: 0.6}).addTo(this.map);
+    },
+    removeActivatedMarker() {
+      if (this.activatedMarker) {
+        this.map.removeLayer(this.activatedMarker);
+        this.activatedMarker = null;
+      }
+    },
+    startWatchingPosition() {
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
+        this.watchId = navigator.geolocation.watchPosition(
           (position) => {
             const { latitude, longitude } = position.coords;
-            this.currentPosition = `${latitude}, ${longitude}`;
+
+            this.currentPosition = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+
+            if (this.currentPosition && this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+              this.websocket.send(JSON.stringify({ lat: latitude, lng: longitude }));
+            }
+
             if (this.map) {
-              this.map.setView([latitude, longitude], 13);
+              if (this.positionMarker) {
+                this.positionMarker.setLatLng([latitude, longitude]);
+              } else {
+                this.positionMarker = L.marker([latitude, longitude], {
+                  icon: L.icon({
+                  iconUrl: ambulanceIconUrl,
+                  iconSize: [32, 32],
+                  iconAnchor: [16, 20],
+                }),
+                }).addTo(this.map);
+              }
+            }
+            this.fitMarkersInView();
+
+            if (this.destinationMarker) {
+              this.traceRoute([latitude, longitude], this.destinationMarker.getLatLng());
             }
           },
           (error) => {
             alert("Unable to retrieve your location.");
+          },
+          { 
+            enableHighAccuracy: true, 
+            timeout: 5000,
+            maximumAge: 0 
           }
         );
       } else {
@@ -78,27 +162,267 @@ export default {
     },
     searchDestination() {
       if (this.destination) {
-        const simulatedLatLng = [37.7749, -122.4194]; // Example: San Francisco
-        if (this.marker) {
-          this.marker.setLatLng(simulatedLatLng);
-        } else {
-          this.marker = L.marker(simulatedLatLng, {
-            icon: L.icon({
-              iconUrl: markerIcon,
-              iconSize: [40, 40],
+        const coords = this.destination.split(",").map(coord => parseFloat(coord.trim()));
+        if (coords.length === 2 && !coords.some(isNaN)) {
+
+          this.gpxGenerated = true;
+
+          if (this.destinationMarker) {
+            this.destinationMarker.setLatLng(coords);
+          } else {
+            this.destinationMarker = L.marker(coords, {
+              icon: L.icon({
+              iconUrl: accidentIconUrl,
+              iconSize: [32, 32],
+              iconAnchor: [16, 32],
             }),
-          }).addTo(this.map);
+            }).addTo(this.map);
+          }
+          if (this.positionMarker) {
+            this.traceRoute(this.positionMarker.getLatLng(), L.latLng(coords))
+          }
+          this.fitMarkersInView();
+        } else {
+          alert("Please enter valid coordinates in the format: lat, lng");
         }
-        this.map.setView(simulatedLatLng, 13);
       }
+    },
+    async placeStoplightsNearRoute() {
+      const gpxData = localStorage.getItem("gpxData");
+
+      if (gpxData) {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(gpxData, "application/xml");
+        const GPX_NS = xmlDoc.documentElement.namespaceURI;
+        const trackpoints = xmlDoc.getElementsByTagNameNS(GPX_NS, "trkpt");
+
+        for (let i = 0; i < trackpoints.length; i++) {
+          const lat = parseFloat(trackpoints[i].getAttribute("lat"));
+          const lon = parseFloat(trackpoints[i].getAttribute("lon"));
+          this.routeCoordinates.push([lat, lon]);
+        }
+
+        const csrfToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("csrftoken"))
+        ?.split("=")[1];
+
+        const response = await axios.get(`${import.meta.env.VITE_BACKEND_API_URL}/stoplights/`, {
+          withCredentials: true,
+          headers: {
+            "X-CSRFToken": csrfToken,
+          },
+        });
+
+        const stoplight_groups = response.data.stoplight_groups;
+
+        stoplight_groups.forEach((stoplight_group) => {
+          const { lat, lng, groupID } = stoplight_group;
+
+          const icon = L.icon({
+            iconUrl: trafficLightIcon,
+            iconSize: [32, 32],
+            iconAnchor: [20, 15],
+          });
+
+          const marker = L.marker([lat, lng], { icon }).addTo(this.map);
+          this.groupMarkers[groupID] = marker;
+        });
+      } else {
+        alert("No GPX data found in localStorage.");
+      }
+    },
+    fitMarkersInView() {
+      const latLngs = [];
+
+      if (this.positionMarker) {
+        latLngs.push(this.positionMarker.getLatLng());
+      }
+
+      if (this.destinationMarker) {
+        latLngs.push(this.destinationMarker.getLatLng());
+      }
+
+      if (latLngs.length >= 2) {
+        this.map.fitBounds(L.latLngBounds(latLngs), { padding: [50, 50] });
+      } else if (latLngs.length === 1) {
+        this.map.setView(latLngs[0], 40);
+      }
+    },
+    async traceRoute(start, end) {
+      // Assuming OSRM is available locally at localhost:5000
+      // start and end are [lat, lng]
+
+      // OSRM expects lng,lat format (GeoJSON standard)
+      const startLat = start.lat || start[0];
+      const startLng = start.lng || start[1];
+      const endLat = end.lat || end[0];
+      const endLng = end.lng || end[1];
+
+      const osrmUrl = `http://localhost:5000/route/v1/car/${startLng},${startLat};${endLng},${endLat}?geometries=geojson`;
+
+      fetch(osrmUrl)
+        .then((res) => res.json())
+        .then(async (data) => {
+          if (!data.routes || data.routes.length === 0) {
+            alert("No route found.");
+            return;
+          }
+
+          const route = data.routes[0].geometry;
+
+          // Remove existing polyline if existing
+          if (this.routePolyline) {
+            this.map.removeLayer(this.routePolyline);
+          }
+
+          this.routePolyline = L.geoJSON(route, {
+            style: { color: "blue", weight: 4, opacity: 0.7 },
+          }).addTo(this.map);
+
+          // Fit bounds to route for proper view
+          this.map.fitBounds(this.routePolyline.getBounds(), { padding: [50, 50] });
+
+          // Generate first OSRM route as a GPX file; basis of stoplights to show
+          if (this.gpxGenerated) {
+            const gpxContent = this.generateGpx(route.coordinates);
+            localStorage.setItem("gpxData", gpxContent);
+            this.gpxGenerated = false;
+
+            console.log(gpxContent);
+
+            await this.placeStoplightsNearRoute();
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetching route:", err);
+          alert("Failed to fetch route from OSRM.");
+        });
+    },
+    generateGpx(coords) {
+      // Create initial GPX file when trace route initiated
+      const now = new Date().toISOString();
+
+      const gpxHeader = `<?xml version="1.0" encoding="UTF-8"?>
+    <gpx xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.topografix.com/GPX/1/1 
+                            http://www.topografix.com/GPX/1/1/gpx.xsd"
+        creator="LiveTravelApp"
+        version="1.1"
+        xmlns="http://www.topografix.com/GPX/1/1">
+      <metadata>
+        <time>${now}</time>
+      </metadata>
+      <trk>
+        <name>OSRM Route</name>
+        <type>car</type>
+        <trkseg>
+    `;
+
+      const gpxFooter = `
+        </trkseg>
+      </trk>
+    </gpx>`;
+
+      const gpxPoints = coords
+        .map(([lng, lat], i) => {
+          const time = new Date(Date.now() + i * 1000).toISOString(); // spaced timestamps every 1 sec
+          return `      <trkpt lat="${lat}" lon="${lng}">
+            <ele>0</ele>
+            <time>${time}</time>
+          </trkpt>`;
+        })
+        .join("\n");
+
+      return gpxHeader + gpxPoints + gpxFooter;
+    },
+    confirmGoBack() {
+      // Stop watching the position
+      if (this.watchId !== null) {
+        navigator.geolocation.clearWatch(this.watchId);
+        this.watchId = null;
+      }
+
+      if (this.websocket) {
+        this.websocket.close();
+      }
+      localStorage.removeItem("websocket");
+      this.$router.push("/");
     },
   },
   mounted() {
-    this.map = L.map("map").setView([37.7749, -122.4194], 13);
+    this.map = L.map("map").setView([0, 0], 13);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     }).addTo(this.map);
+
+    this.map.whenReady(() => {
+      navigator.geolocation.getCurrentPosition(
+        () => {
+          this.startWatchingPosition();
+        },
+        (err) => {
+          alert("Please enable location services to use this feature.");
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    });
+
+    const init = async () => {
+      try {
+        const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
+          "http",
+          "ws"
+        )}/ws/live/`;
+        this.websocket = new WebSocket(websocketUrl);
+
+        this.websocket.onmessage = (event) => {
+          const message = JSON.parse(event.data);
+
+          if (message.activate === 1) {
+            // Group activated
+            this.activatedGroup = message.groupID;
+
+            // Get the marker's screen position
+            const marker = this.groupMarkers[message.groupID];
+            if (marker) {
+              this.addActivatedMarker(marker.getLatLng());
+            }
+          } else if (message.activate === 0) {
+            // Group deactivated
+            if (this.activatedGroup === message.groupID) {
+              this.activatedGroup = null;
+              this.removeActivatedMarker();
+            }
+          }
+        };
+
+        this.websocket.onopen = () => {
+          console.log("WebSocket connection established.");
+        };
+
+        this.websocket.onerror = (error) => {
+          console.error("WebSocket error:", error);
+          alert("Failed to establish WebSocket connection.");
+        };
+
+        this.websocket.onclose = () => {
+          console.log("WebSocket connection closed.");
+        };
+
+      } catch (error) {
+        console.error("Error during mounted init:", error);
+      }
+    };
+
+    init(); // Call the inner async function
   },
+  beforeUnmount() {
+    if (this.watchId !== null) {
+      navigator.geolocation.clearWatch(this.watchId);
+      this.watchId = null;
+    }
+  }
 };
 </script>
 
