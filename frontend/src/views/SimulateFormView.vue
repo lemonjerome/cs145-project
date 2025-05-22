@@ -1,22 +1,22 @@
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center px-6 py-8">
+  <div class="min-h-screen w-full flex flex-col items-stretch justify-center px-2 sm:px-6 md:px-8 py-6">
     <!-- Loading Modal and Overlay -->
     <div
       v-show="isLoading"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
     >
-      <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+      <div class="bg-white p-6 rounded-lg shadow-lg text-center max-w-xs sm:max-w-sm mx-4">
         <h2 class="text-xl font-bold mb-4">Loading Stoplights...</h2>
         <p class="text-gray-600">Please wait while we load the stoplight data.</p>
       </div>
     </div>
 
     <!-- Main Content -->
-    <div class="bg-gray-100 rounded-lg shadow-lg w-full min-w-5xl p-6">
-      <h1 class="text-4xl font-bold text-green-500 mb-6 text-center">Route Simulation</h1>
+    <div class="bg-gray-100 rounded-lg shadow-lg w-full px-2 sm:px-6 md:px-8 py-6">
+      <h1 class="text-3xl sm:text-4xl font-bold text-green-500 mb-6 text-center">Route Simulation</h1>
 
       <!-- Speed & Buttons -->
-      <form @submit.prevent class="mb-6 flex flex-col items-center gap-4 w-full">
+      <form @submit.prevent class="mb-6 flex flex-col items-center gap-4 w-full max-w-xl mx-auto">
         <label class="text-lg font-medium">Speed: {{ speedKmh }} km/h</label>
         <input
           type="range"
@@ -27,7 +27,7 @@
           class="w-full"
           @input="onSpeedChange"
         />
-        <div class="flex gap-4 mt-2">
+        <div class="flex flex-wrap justify-center gap-4 mt-2 w-full">
           <button type="button" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded" @click="startSimulation">Start</button>
           <button type="button" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded" @click="resumeSimulation">Resume</button>
           <button type="button" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded" @click="pauseSimulation">Pause</button>
@@ -36,12 +36,12 @@
 
       <!-- Map -->
       <div class="w-full">
-        <div id="map" class="w-full h-96 border border-gray-300 rounded-lg"></div>
+        <div id="map" class="w-full h-72 sm:h-96 border border-gray-300 rounded-lg"></div>
       </div>
 
       <!-- Go Back Button -->
       <button
-        class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600 mt-6"
+        class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600 mt-6 w-full max-w-xs mx-auto"
         @click="showModal = true"
       >
         Go Back
@@ -49,11 +49,11 @@
     </div>
 
     <!-- Confirmation Modal -->
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+      <div class="bg-white p-6 rounded-lg shadow-lg text-center max-w-xs sm:max-w-sm mx-auto">
         <h2 class="text-xl font-bold mb-4">Are you sure you want to go back?</h2>
         <p class="text-gray-600 mb-6">This will stop the simulation and disconnect from the server.</p>
-        <div class="flex justify-center gap-4">
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
           <button
             class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
             @click="confirmGoBack"
@@ -107,8 +107,8 @@ export default {
     try {
       // Establish WebSocket connection
       const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
-        "https",
-        "wss"
+        "http",
+        "ws"
       )}/ws/simulation/`;
       this.websocket = new WebSocket(websocketUrl);
 
@@ -469,9 +469,7 @@ export default {
   padding-top: 2rem;
   padding-bottom: 2rem;
 }
-.max-w-5xl {
-  max-width: 80rem;
-}
+
 .fixed {
   position: fixed;
 }

@@ -1,43 +1,42 @@
 <template>
-  <div class="min-h-screen flex flex-col items-center justify-center px-6 py-8">
+  <div class="min-h-screen w-full flex flex-col items-stretch justify-center px-2 sm:px-6 md:px-8 py-6">
     <!-- Gray Container -->
-    <div class="bg-gray-100 rounded-lg shadow-lg w-full min-w-4xl p-8">
+    <div class="bg-gray-100 rounded-lg shadow-lg w-full px-2 sm:px-6 md:px-8 py-6">
       <!-- Header -->
       <h1 class="text-4xl font-bold text-green-500 mb-8 text-center">Live Travel</h1>
 
       <!-- Current GPS Position -->
-        <div class="flex items-center space-x-4 mb-4">
-          <input
-            type="text"
-            v-model="currentPosition"
-            readonly
-            class="border border-gray-300 rounded-lg p-2 w-full bg-gray-200"
-            placeholder="Current GPS Position"
-          />
-        </div>
+      <div class="flex items-center space-x-4 mb-4">
+        <input
+          type="text"
+          v-model="currentPosition"
+          readonly
+          class="border border-gray-300 rounded-lg p-2 w-full bg-gray-200"
+          placeholder="Current GPS Position"
+        />
+      </div>
 
       <!-- Destination Search -->
-        <div class="flex items-center space-x-4 mb-4">
-          <input
-            type="text"
-            v-model="destination"
-            class="border border-gray-300 rounded-lg p-2 w-full bg-white-200"
-            placeholder="Search Destination"
-          />
+      <div class="flex items-center space-x-4 mb-4">
+        <input
+          type="text"
+          v-model="destination"
+          class="border border-gray-300 rounded-lg p-2 w-full bg-white-200"
+          placeholder="Search Destination"
+        />
+        <button 
+          @click="searchDestination"
+          class="bg-green-500 text-white px-4 py-2 rounded-lg shadow hover:bg-green-600"
+        >
+          Trace Route
+        </button>
+      </div>
 
-          <button 
-            @click="searchDestination"
-            class="bg-green-500 text-white px-4 py-2 rounded-lg shadow hover:bg-green-600"
-          >
-            Trace Route
-          </button>
-        </div>
-
-        <div id="map" class="w-full h-96 border border-gray-300 rounded-lg"></div>
+      <div id="map" class="w-full h-72 sm:h-96 border border-gray-300 rounded-lg"></div>
 
       <!-- Go Back Button -->
       <button
-        class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600 mt-6"
+        class="bg-gray-500 text-white px-6 py-3 rounded-lg shadow hover:bg-gray-600 mt-6 w-full max-w-xs mx-auto"
         @click="showModal = true"
       >
         Go Back
@@ -46,10 +45,10 @@
 
     <!-- Confirmation Modal -->
     <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]">
-      <div class="bg-white p-6 rounded-lg shadow-lg text-center">
+      <div class="bg-white p-6 rounded-lg shadow-lg text-center max-w-xs sm:max-w-sm mx-auto">
         <h2 class="text-xl font-bold mb-4">Are you sure you want to go back?</h2>
         <p class="text-gray-600 mb-6">This will stop the simulation and disconnect from the server.</p>
-        <div class="flex justify-center gap-4">
+        <div class="flex flex-col sm:flex-row justify-center gap-4">
           <button
             class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
             @click="confirmGoBack"
@@ -372,8 +371,8 @@ export default {
     const init = async () => {
       try {
         const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
-          "https",
-          "wss"
+          "http",
+          "ws"
         )}/ws/live/`;
         this.websocket = new WebSocket(websocketUrl);
 
@@ -428,8 +427,13 @@ export default {
 </script>
 
 <style scoped>
+.bg-opacity-50 {
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
 #map {
-  height: 24rem; /* Adjust height as needed */
+  height: 35rem; /* Adjust height as needed */
 }
 
 .bg-gray-100 {
