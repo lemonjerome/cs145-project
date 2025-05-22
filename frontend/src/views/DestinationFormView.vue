@@ -189,6 +189,8 @@ export default {
     async placeStoplightsNearRoute() {
       const gpxData = localStorage.getItem("gpxData");
 
+      alert(gpxData)
+
       if (gpxData) {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(gpxData, "application/xml");
@@ -282,6 +284,8 @@ export default {
 
           // Fit bounds to route for proper view
           this.map.fitBounds(this.routePolyline.getBounds(), { padding: [50, 50] });
+
+          alert(this.gpxGenerated)
 
           // Generate first OSRM route as a GPX file; basis of stoplights to show
           if (this.gpxGenerated) {
