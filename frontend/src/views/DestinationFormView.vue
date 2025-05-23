@@ -338,7 +338,7 @@ export default {
 
             console.log(gpxContent);
 
-            // await this.placeStoplightsNearRoute();
+            await this.placeStoplightsNearRoute();
           }
         })
         .catch((err) => {
