@@ -338,7 +338,7 @@ export default {
 
             console.log(gpxContent);
 
-            await this.placeStoplightsNearRoute();
+            // await this.placeStoplightsNearRoute();
           }
         })
         .catch((err) => {
@@ -446,6 +446,9 @@ export default {
 
         this.websocket.onopen = () => {
           console.log("WebSocket connection established.");
+
+          // remove this later
+          alert("Websocket connection established.")
         };
 
         this.websocket.onerror = (error) => {
@@ -455,6 +458,9 @@ export default {
 
         this.websocket.onclose = () => {
           console.log("WebSocket connection closed.");
+
+          // remove this later
+          alert("Websocket connection closed.")
         };
 
       } catch (error) {
