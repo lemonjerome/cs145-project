@@ -159,30 +159,78 @@ export default {
         alert("Geolocation is not supported by your browser.");
       }
     },
-    searchDestination() {
-      if (this.destination) {
-        const coords = this.destination.split(",").map(coord => parseFloat(coord.trim()));
-        if (coords.length === 2 && !coords.some(isNaN)) {
+    async searchDestination() {
+      if (!this.destination) return;
 
-          this.gpxGenerated = true;
+      // Try parsing as lat,lng coords first
+      const coords = this.destination.split(",").map(coord => parseFloat(coord.trim()));
 
-          if (this.destinationMarker) {
-            this.destinationMarker.setLatLng(coords);
-          } else {
-            this.destinationMarker = L.marker(coords, {
-              icon: L.icon({
+      if (coords.length === 2 && !coords.some(isNaN)) {
+        // It's valid coordinates
+        this.gpxGenerated = true;
+
+        if (this.destinationMarker) {
+          this.destinationMarker.setLatLng(coords);
+        } else {
+          this.destinationMarker = L.marker(coords, {
+            icon: L.icon({
               iconUrl: accidentIconUrl,
               iconSize: [32, 32],
               iconAnchor: [16, 32],
             }),
+          }).addTo(this.map);
+        }
+
+        if (this.positionMarker) {
+          this.traceRoute(this.positionMarker.getLatLng(), L.latLng(coords));
+        }
+        this.fitMarkersInView();
+
+      } else {
+        // Otherwise, treat as landmark name and query Nominatim
+        try {
+          const query = encodeURIComponent(this.destination);
+          const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`;
+
+          const response = await fetch(url, {
+            headers: {
+              "Accept": "application/json",
+              "User-Agent": "LiveTravelApp/1.0 (your-email@example.com)"  // Replace with your info
+            }
+          });
+          const data = await response.json();
+
+          if (data.length === 0) {
+            alert("No results found for that landmark.");
+            return;
+          }
+
+          const place = data[0];
+          const lat = parseFloat(place.lat);
+          const lon = parseFloat(place.lon);
+
+          this.gpxGenerated = true;
+
+          if (this.destinationMarker) {
+            this.destinationMarker.setLatLng([lat, lon]);
+          } else {
+            this.destinationMarker = L.marker([lat, lon], {
+              icon: L.icon({
+                iconUrl: accidentIconUrl,
+                iconSize: [32, 32],
+                iconAnchor: [16, 32],
+              }),
             }).addTo(this.map);
           }
+
           if (this.positionMarker) {
-            this.traceRoute(this.positionMarker.getLatLng(), L.latLng(coords))
+            this.traceRoute(this.positionMarker.getLatLng(), L.latLng([lat, lon]));
           }
           this.fitMarkersInView();
-        } else {
-          alert("Please enter valid coordinates in the format: lat, lng");
+
+        } catch (error) {
+          console.error("Nominatim search error:", error);
+          alert("Error occurred while searching for the landmark.");
         }
       }
     },
