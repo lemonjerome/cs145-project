@@ -195,7 +195,6 @@ export default {
           const response = await fetch(url, {
             headers: {
               "Accept": "application/json",
-              "User-Agent": "LiveTravelApp/1.0 (your-email@example.com)"  // Replace with your info
             }
           });
           const data = await response.json();
