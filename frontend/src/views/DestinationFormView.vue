@@ -260,12 +260,15 @@ export default {
           },
         });
 
-        alert(response.data)
+        // const stoplight_groups = response.data.stoplight_groups
 
-        const stoplight_groups = response.data.stoplight_groups;
-        const stoplights = response.data.stoplights;
+        // console.log("Stoplights:", JSON.stringify(response.data.stoplight_groups));
 
-        alert(`Stoplight groups:\n${JSON.stringify(response.data.stoplight_groups, null, 2)}\n\nStoplights:\n${JSON.stringify(response.data.stoplights, null, 2)}`);
+        const stoplight_groups = [{"groupID":1,"lat":14.649753293103554,"lng":121.06867102448624},
+                                  {"groupID":2,"lat":14.652471091911622,"lng":121.06866962581128}]
+           
+       
+        // alert(`Stoplight groups:\n${JSON.stringify(response.data.stoplight_groups, null, 2)}\n\nStoplights:\n${JSON.stringify(response.data.stoplights, null, 2)}`);
 
         for (const stoplight_group of stoplight_groups) {
           const { lat, lng, groupID } = stoplight_group;
