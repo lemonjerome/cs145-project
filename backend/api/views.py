@@ -62,11 +62,11 @@ def post_route(request):
             for stoplight in stoplights
         ]
 
-        request.session['stoplight_groups'] = serialized_groups
-        request.session['stoplights'] = serialized_stoplights
-        request.session['closest_stoplights'] = closest_stoplights  # Store closest stoplights
-        request.session.modified = True
-        return Response({"message": "Coordinates processed successfully."}, status=200)
+        request.session["stoplight_groups"] = serialized_groups
+        request.session["stoplights"] = serialized_stoplights
+        request.session["closest_stoplights"] = closest_stoplights  # Store closest stoplights
+        request.session.save()
+        return Response({"success": True})
     except Exception as e:
         return Response({"error": str(e)}, status=400)
 
