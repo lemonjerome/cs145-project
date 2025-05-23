@@ -71,6 +71,8 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import axios from 'axios';
+import { useStoplightsStore } from "@/stores/stoplights";
+import { watch } from "vue";
 import trafficLightIcon from "@/assets/svg/traffic-light-svgrepo-com.svg";
 import ambulanceIconUrl from "@/assets/svg/ambulance-svgrepo-com.svg";
 import accidentIconUrl from "@/assets/svg/accident-svgrepo-com.svg";
@@ -95,6 +97,10 @@ export default {
       routeCoordinates: [],
       activatedMarker: null,
     };
+  },
+  setup() {
+    const stoplightsStore = useStoplightsStore();
+    return { stoplightsStore };
   },
   methods: {
     addActivatedMarker(latlng) {
@@ -249,9 +255,9 @@ export default {
         }
 
         const csrfToken = document.cookie
-        .split("; ")
-        .find((row) => row.startsWith("csrftoken"))
-        ?.split("=")[1];
+          .split("; ")
+          .find((row) => row.startsWith("csrftoken"))
+          ?.split("=")[1];
 
         const response = await axios.get(`${import.meta.env.VITE_BACKEND_API_URL}/stoplights/`, {
           withCredentials: true,
@@ -260,15 +266,9 @@ export default {
           },
         });
 
-        // const stoplight_groups = response.data.stoplight_groups
+        const stoplight_groups = response.data.stoplight_groups; // <-- Use backend data only
 
         // console.log("Stoplights:", JSON.stringify(response.data.stoplight_groups));
-
-        const stoplight_groups = [{"groupID":1,"lat":14.649753293103554,"lng":121.06867102448624},
-                                  {"groupID":2,"lat":14.652471091911622,"lng":121.06866962581128}]
-           
-       
-        // alert(`Stoplight groups:\n${JSON.stringify(response.data.stoplight_groups, null, 2)}\n\nStoplights:\n${JSON.stringify(response.data.stoplights, null, 2)}`);
 
         for (const stoplight_group of stoplight_groups) {
           const { lat, lng, groupID } = stoplight_group;
@@ -306,9 +306,6 @@ export default {
       }
     },
     async traceRoute(start, end) {
-      // Assuming OSRM is available locally at localhost:5000
-      // start and end are [lat, lng]
-
       // OSRM expects lng,lat format (GeoJSON standard)
       const startLat = start.lat || start[0];
       const startLng = start.lng || start[1];
@@ -339,6 +336,31 @@ export default {
 
           // Fit bounds to route for proper view
           this.map.fitBounds(this.routePolyline.getBounds(), { padding: [50, 50] });
+
+          // Prepare coordinates as [lat, lng] pairs for backend
+          const routeCoords = route.coordinates.map(([lng, lat]) => [lat, lng]);
+          try {
+            const csrfToken = document.cookie
+              .split("; ")
+              .find((row) => row.startsWith("csrftoken"))
+              ?.split("=")[1];
+
+            await axios.post(
+              `${import.meta.env.VITE_BACKEND_API_URL}/route/`,
+              { coordinates: routeCoords },
+              {
+                withCredentials: true,
+                headers: {
+                  "X-CSRFToken": csrfToken,
+                },
+              }
+            );
+            // Fetch stoplights after posting route
+            await this.fetchStoplights();
+          } catch (err) {
+            console.error("Error sending route to backend:", err);
+            alert("Failed to send route to backend.");
+          }
 
           // Generate first OSRM route as a GPX file; basis of stoplights to show
           if (this.gpxGenerated) {
@@ -405,6 +427,46 @@ export default {
       }
       localStorage.removeItem("websocket");
       this.$router.push("/");
+    },
+    async fetchStoplights() {
+      const csrfToken = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith("csrftoken"))
+        ?.split("=")[1];
+
+      const response = await axios.get(`${import.meta.env.VITE_BACKEND_API_URL}/stoplights/`, {
+        withCredentials: true,
+        headers: {
+          "X-CSRFToken": csrfToken,
+        },
+      });
+      this.stoplightsStore.setStoplightGroups(response.data.stoplight_groups);
+      this.stoplightsStore.setStoplights(response.data.stoplights);
+    },
+    updateStoplightMarkers() {
+      // Remove old markers
+      Object.values(this.groupMarkers).forEach(marker => this.map.removeLayer(marker));
+      this.groupMarkers = {};
+      // Add new markers from store
+      this.stoplightsStore.stoplightGroups.forEach(group => {
+        const { lat, lng, groupID } = group;
+        const icon = L.icon({
+          iconUrl: trafficLightIcon,
+          iconSize: [32, 32],
+          iconAnchor: [20, 15],
+        });
+        const marker = L.marker([lat, lng], { icon }).addTo(this.map);
+        this.groupMarkers[groupID] = marker;
+      });
+    },
+  },
+  watch: {
+    // Watch for changes in the Pinia store and update markers
+    'stoplightsStore.stoplightGroups': {
+      handler() {
+        if (this.map) this.updateStoplightMarkers();
+      },
+      deep: true,
     },
   },
   mounted() {

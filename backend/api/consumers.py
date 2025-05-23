@@ -127,7 +127,6 @@ class LiveSimulationConsumer(AsyncWebsocketConsumer):
         self.stoplight_groups = self.scope["session"].get("stoplight_groups", [])
         self.closest_stoplights = self.scope["session"].get("closest_stoplights", {})
 
-
         print("LiveSimulation WebSocket connection established.")
 
     async def disconnect(self, close_code):
@@ -151,9 +150,9 @@ class LiveSimulationConsumer(AsyncWebsocketConsumer):
             return
 
         try:
-          current_location = (float(lat), float(lng))
+            current_location = (float(lat), float(lng))
         except ValueError:
-          return
+            return
 
         # Check proximity to stoplight groups
         channel_layer = get_channel_layer()
@@ -181,6 +180,7 @@ class LiveSimulationConsumer(AsyncWebsocketConsumer):
                         # Send to frontend WebSocket
                         await self.send(text_data=json.dumps(message))
 
+                        # Send to ESP32 WebSocket group
                         await channel_layer.group_send(
                             "esp32_group",
                             {"type": "broadcast_message", "message": message},
@@ -203,6 +203,7 @@ class LiveSimulationConsumer(AsyncWebsocketConsumer):
                         # Send to frontend WebSocket
                         await self.send(text_data=json.dumps(message))
 
+                        # Send to ESP32 WebSocket group
                         await channel_layer.group_send(
                             "esp32_group",
                             {"type": "broadcast_message", "message": message},
