@@ -490,8 +490,8 @@ export default {
     const init = async () => {
       try {
         const websocketUrl = `${import.meta.env.VITE_BACKEND_BASE_URL.replace(
-          "https",
-          "wss"
+          "http",
+          "ws"
         )}/ws/live/`;
         this.websocket = new WebSocket(websocketUrl);
 
